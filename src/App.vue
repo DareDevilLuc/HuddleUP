@@ -1,6 +1,6 @@
 <script setup>
   import { ref, onMounted } from 'vue'
-  import { supabase } from '../utils/supabase'
+  import { supabase } from './utils/supabase'
   
   const todos = ref([])
 
