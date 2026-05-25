@@ -1,15 +1,22 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import App from '../App.vue'
+import AuthLayout from '@/layouts/AuthLayout.vue'
+
+
+const routes = [
+   {
+    path: '/',
+    component: AuthLayout,        // ← layout wraps the children
+    children: [
+      { path: '', redirect: '/login' },
+      { path: 'login', component: () => import('../pages/LoginPage.vue') },
+      { path: 'signup', component: () => import('../pages/SignupPage.vue') },
+    ]
+  }
+]
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [
-    {
-      path: '/',
-      name: 'home',
-      component: App,
-    },
-  ],
+  history: createWebHistory(),
+  routes 
 })
 
 export default router
