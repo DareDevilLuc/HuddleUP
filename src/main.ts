@@ -27,7 +27,7 @@ const MyTheme = definePreset(Aura, {
     colorScheme: {
       light: {
         primary: {
-          color: '{green.500}',
+          color: '{green.900}',
           contrastColor: '#ffffff',
           hoverColor: '{green.600}',
           activeColor: '{green.700}'
@@ -53,7 +53,7 @@ const MyTheme = definePreset(Aura, {
           950: '{zinc.950}'
         },
         formField: {
-          borderColor: '{indigo.400}',
+          borderColor: '{surface.400}',
           hoverBorderColor: '{indigo.500}',
           focusBorderColor: '{indigo.700}',
           color: '{indigo.700}',
@@ -109,7 +109,7 @@ const MyTheme = definePreset(Aura, {
       colorScheme: {
         light: {
           root: {
-            background: '{surface.400}',
+            background: '{surface.300}',
             color: '{surface.0}'
           },
           subtitle: {
