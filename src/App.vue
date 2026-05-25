@@ -1,12 +1,17 @@
 <script setup>
   import { ref, onMounted } from 'vue'
-  import { supabase } from './utils/supabase'
+  import { supabase } from '../utils/supabase'
   import Button from 'primevue/button'
   
   const todos = ref([])
 
   async function getTodos() {
-    const { data } = await supabase.from('todos').select()
+    const { data, error } = await supabase.from('todos').select()
+    if (error) {
+      console.error('Error fetching todos:', error)
+      return
+    }
+    console.log('Todos fetched:', data)
     todos.value = data
   }
 
