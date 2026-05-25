@@ -1,6 +1,7 @@
 <script setup>
   import { ref, onMounted } from 'vue'
   import { supabase } from './utils/supabase'
+  import Button from 'primevue/button'
   
   const todos = ref([])
 
@@ -19,4 +20,6 @@
   <ul>
     <li v-for="todo in todos" :key="todo.id">{{ todo.name }}</li>
   </ul>
+
+  <Button>test</Button>
 </template>
