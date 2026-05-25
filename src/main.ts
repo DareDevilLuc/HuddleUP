@@ -109,7 +109,7 @@ const MyTheme = definePreset(Aura, {
       colorScheme: {
         light: {
           root: {
-            background: '{surface.700}',
+            background: '{surface.400}',
             color: '{surface.0}'
           },
           subtitle: {
@@ -145,7 +145,7 @@ const MyTheme = definePreset(Aura, {
         }
       }
     }
-  }
+  },
 })
 
 const app = createApp(App)
@@ -155,6 +155,9 @@ app.use(router)
 app.use(PrimeVue, {
     theme: {
         preset: MyTheme,
+        options: {
+          darkModeSelector: '.my-app-dark'
+        }
     }
  });
 app.mount('#app')
