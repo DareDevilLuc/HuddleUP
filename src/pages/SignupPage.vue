@@ -20,7 +20,7 @@
          await signUp(email.value, pass.value)
 
       }
-      catch(e : string) {
+      catch(e : any) {
         error.value = e.message 
       }
     }
@@ -54,7 +54,7 @@
 
         <Button @click="handleSignup" class="signup-bt" label="Sign Up"/>
 
-        <p v-if="error"> {{ error }}</p>
+        <p class="error-mess" v-if="error"> {{ error }}</p>
 
         <span style="color: black;">Already have an account? <RouterLink to="/login" class="link">Log in</RouterLink></span>
       </div>
@@ -66,6 +66,10 @@
 </template>
 
 <style scoped>
+
+.error-mess{
+  color : red
+}
 
 .form-field{
 display: flex;

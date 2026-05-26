@@ -1,11 +1,28 @@
-<script setup>
+<script setup lang="ts">
   import {ref} from 'vue'
   import Card from 'primevue/card'
   import FloatLabel from 'primevue/floatlabel';
   import InputText from 'primevue/inputtext'
   import Button from 'primevue/button'
+  import { useAuth } from '@/composables/useAuth';
 
-  const value = ref('')
+  const { signIn } = useAuth()
+
+  const email = ref('')
+  const pass = ref('')
+
+  const error = ref('')
+  const valid = ref('')
+
+  const handleSignin = async() => {
+      try {
+        await signIn(email.value, pass.value)
+        valid.value = "Sign in successful"
+      }
+      catch(e : any) {
+        error.value = e.message
+      }
+  }
   
 </script>
 
@@ -19,16 +36,19 @@
 
       <div class="form-field">
         <FloatLabel class="input-field" variant="in"> 
-          <InputText id="email" v-model="value"/> 
+          <InputText id="email" v-model="email"/> 
           <label for="email">Email</label> 
         </FloatLabel>   
 
         <FloatLabel class="input-field" variant="in"> 
-          <InputText id="password" v-model="value" /> 
+          <InputText id="password" v-model="pass" /> 
           <label for="password">Password</label> 
         </FloatLabel>   
 
-        <Button class="login-bt" label="Log In"/>
+        <Button @click="handleSignin" class="login-bt" label="Log In"/>
+
+        <p class="error-mess" v-if="error"> {{ error }}</p>
+        <p class="success-mess" v-if="valid"> {{ valid}}</p>
 
         <span style="color: black;">Don't have an account? <RouterLink to="/signup" class="link">Sign up</RouterLink></span>
         
@@ -41,6 +61,14 @@
 </template>
 
 <style scoped>
+
+.error-mess{
+  color : red
+}
+
+.success-mess{
+  color : green
+}
 
 .form-field{
   display: flex;
