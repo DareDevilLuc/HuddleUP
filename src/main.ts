@@ -105,6 +105,16 @@ const MyTheme = definePreset(Aura, {
     }
   },
   components: {
+    divider: {
+      colorScheme: {
+        light: {
+          root: {
+            borderColor: '{surface.700}'
+
+          }
+        }
+      }
+    },
     menu: {
       submenuLabel: {
         fontWeight: 'bold',

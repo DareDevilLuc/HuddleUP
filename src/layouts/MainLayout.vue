@@ -56,6 +56,7 @@ const items = ref([
 
                 </div>
 
+                <Divider/>
             </template>
 
         </Menu>

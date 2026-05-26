@@ -5,6 +5,9 @@
   import InputText from 'primevue/inputtext'
   import Button from 'primevue/button'
   import { useAuth } from '@/composables/useAuth';
+  import { useRouter } from 'vue-router';
+
+  const router = useRouter();
 
   const { signIn } = useAuth()
 
@@ -17,7 +20,7 @@
   const handleSignin = async() => {
       try {
         await signIn(email.value, pass.value)
-        valid.value = "Sign in successful"
+        router.replace('/main')
       }
       catch(e : any) {
         error.value = e.message

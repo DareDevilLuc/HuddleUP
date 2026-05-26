@@ -13,12 +13,13 @@
     const pass = ref('')
     const verify = ref('')
     const error = ref('')
+    const signed = ref('')
 
     const handleSignup = async() => {
 
       try{
          await signUp(email.value, pass.value)
-
+        signed.value = "Signed Up successful, you may now login"
       }
       catch(e : any) {
         error.value = e.message 
@@ -55,6 +56,7 @@
         <Button @click="handleSignup" class="signup-bt" label="Sign Up"/>
 
         <p class="error-mess" v-if="error"> {{ error }}</p>
+        <p class="signed-mess" v-if="signed"> {{signed}}</p>
 
         <span style="color: black;">Already have an account? <RouterLink to="/login" class="link">Log in</RouterLink></span>
       </div>
@@ -69,6 +71,10 @@
 
 .error-mess{
   color : red
+}
+
+.signed-mess{
+  color : green
 }
 
 .form-field{
