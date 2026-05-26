@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import { supabase } from '../../utils/supabase.ts'
+import MainLayout from '@/layouts/MainLayout.vue'
 
 
 
@@ -13,7 +14,13 @@ const routes = [
       { path: 'login', component: () => import('../pages/LoginPage.vue') },
       { path: 'signup', component: () => import('../pages/SignupPage.vue') },
     ]
+  },
+  {
+    path: '/main',
+    component: MainLayout,
+    
   }
+
 ]
 
 const router = createRouter({

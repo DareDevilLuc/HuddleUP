@@ -105,6 +105,21 @@ const MyTheme = definePreset(Aura, {
     }
   },
   components: {
+    menu: {
+      submenuLabel: {
+        fontWeight: 'bold',
+        color: 'black'
+      },
+      colorScheme: {
+        light: {
+          root: {
+            background: '{surface.300}',
+            color: 'black'
+          }
+        }
+      }
+    },
+
     card: {
       colorScheme: {
         light: {
