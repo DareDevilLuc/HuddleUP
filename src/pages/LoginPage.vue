@@ -19,8 +19,8 @@
 
       <div class="form-field">
         <FloatLabel class="input-field" variant="in"> 
-          <InputText id="username" v-model="value"/> 
-          <label for="username">Username</label> 
+          <InputText id="email" v-model="value"/> 
+          <label for="email">Email</label> 
         </FloatLabel>   
 
         <FloatLabel class="input-field" variant="in"> 

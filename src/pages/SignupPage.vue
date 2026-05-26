@@ -5,7 +5,25 @@
     import InputText from 'primevue/inputtext'
     import Button from 'primevue/button'
 
-    const value = ref('')
+    import { useAuth } from '@/composables/useAuth';
+
+    const { signUp } = useAuth()
+
+    const email = ref('')
+    const pass = ref('')
+    const verify = ref('')
+    const error = ref('')
+
+    const handleSignup = async() => {
+
+      try{
+         await signUp(email.value, pass.value)
+
+      }
+      catch(e : string) {
+        error.value = e.message 
+      }
+    }
 
 </script>
 
@@ -20,21 +38,23 @@
 
       <div class="form-field">
         <FloatLabel class="input-field" variant="in"> 
-          <InputText id="username" v-model="value"/> 
-          <label for="username">Username</label> 
+          <InputText id="email" v-model="email"/> 
+          <label for="email">Email</label> 
         </FloatLabel>   
 
         <FloatLabel class="input-field" variant="in"> 
-          <InputText id="password" v-model="value" /> 
+          <InputText id="password" v-model="pass" /> 
           <label for="password">Password</label> 
         </FloatLabel>   
 
         <FloatLabel class="input-field" variant="in"> 
-          <InputText id="verify" v-model="value" /> 
+          <InputText id="verify" v-model="verify" /> 
           <label for="verify">Verify Password</label> 
         </FloatLabel>   
 
-        <Button class="signup-bt" label="Sign Up"/>
+        <Button @click="handleSignup" class="signup-bt" label="Sign Up"/>
+
+        <p v-if="error"> {{ error }}</p>
 
         <span style="color: black;">Already have an account? <RouterLink to="/login" class="link">Log in</RouterLink></span>
       </div>
