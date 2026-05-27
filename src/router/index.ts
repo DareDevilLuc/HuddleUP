@@ -6,7 +6,7 @@ import MainLayout from '@/layouts/MainLayout.vue'
 
 
 const routes = [
-   {
+  {
     path: '/',
     component: AuthLayout,        // ← layout wraps the children
     children: [
@@ -18,13 +18,17 @@ const routes = [
   {
     path: '/main',
     component: MainLayout,
+    children: [
+      { path: '', redirect: '/main/dashboard' },
+      { path: 'dashboard', component: () => import('../pages/DashboardPage.vue') },
+    ]
   }
 
 ]
 
 const router = createRouter({
   history: createWebHistory(),
-  routes 
+  routes
 })
 
 router.beforeEach(async (to) => {

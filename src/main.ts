@@ -4,6 +4,7 @@ import PrimeVue from 'primevue/config'
 import { createPinia } from 'pinia'
 import Aura from '@primeuix/themes/aura'
 import { definePreset } from '@primeuix/themes'
+import ToastService from 'primevue/toastservice'
 
 
 import App from './App.vue'
@@ -12,7 +13,7 @@ import router from './router'
 const MyTheme = definePreset(Aura, {
   semantic: {
     primary: {
-      50:  '{green.50}',
+      50: '{green.50}',
       100: '{green.100}',
       200: '{green.200}',
       300: '{green.300}',
@@ -39,8 +40,8 @@ const MyTheme = definePreset(Aura, {
           focusColor: '#ffffff'
         },
         surface: {
-          0:   '#ffffff',
-          50:  '{zinc.50}',
+          0: '#ffffff',
+          50: '{zinc.50}',
           100: '{zinc.100}',
           200: '{zinc.200}',
           300: '{zinc.300}',
@@ -74,8 +75,8 @@ const MyTheme = definePreset(Aura, {
           focusColor: '#ffffff'
         },
         surface: {
-          0:   '#ffffff',
-          50:  '{slate.50}',
+          0: '#ffffff',
+          50: '{slate.50}',
           100: '{slate.100}',
           200: '{slate.200}',
           300: '{slate.300}',
@@ -178,11 +179,12 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 app.use(PrimeVue, {
-    theme: {
-        preset: MyTheme,
-        options: {
-          darkModeSelector: '.my-app-dark'
-        }
+  theme: {
+    preset: MyTheme,
+    options: {
+      darkModeSelector: '.my-app-dark'
     }
- });
+  }
+});
+app.use(ToastService)
 app.mount('#app')
