@@ -18,6 +18,7 @@ const routes = [
   {
     path: '/main',
     component: MainLayout,
+    meta: { requiresAuth: true }, 
     children: [
       { path: '', redirect: '/main/dashboard' },
       { path: 'dashboard', component: () => import('../pages/DashboardPage.vue'), meta: { requiresAuth: true }},
@@ -37,7 +38,7 @@ router.beforeEach(async (to, from, next) => {
   if (to.meta.requiresAuth && !session) {
     next('/login')
   } else if (to.path === '/login' && session) {
-    next('/dashboard') // redirect logged-in users away from login
+    next('/main') // redirect logged-in users away from login
   } else {
     next()
   }

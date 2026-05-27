@@ -8,11 +8,6 @@ const { initAuth } = useAuth();
 
 initAuth()
 
-supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_OUT') {
-    router.push('/login')
-  }
-})
 
 </script>
 
