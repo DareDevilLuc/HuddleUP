@@ -20,7 +20,7 @@ const routes = [
     component: MainLayout,
     children: [
       { path: '', redirect: '/main/dashboard' },
-      { path: 'dashboard', component: () => import('../pages/DashboardPage.vue') },
+      { path: 'dashboard', component: () => import('../pages/DashboardPage.vue'), meta: { requiresAuth: true }},
     ]
   }
 
@@ -31,13 +31,17 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach(async (to) => {
-  const { data } = await supabase.auth.getSession()
-  const isLoggedIn = !!data.session
+router.beforeEach(async (to, from, next) => {
+  const { data: { session } } = await supabase.auth.getSession()
 
-  if (to.meta.requiresAuth && !isLoggedIn) {
-    return { name: 'Login' }
+  if (to.meta.requiresAuth && !session) {
+    next('/login')
+  } else if (to.path === '/login' && session) {
+    next('/dashboard') // redirect logged-in users away from login
+  } else {
+    next()
   }
 })
+
 
 export default router
