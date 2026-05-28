@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { onMounted, computed, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useAuth } from '@/composables/useAuth';
 import { useRooms } from '@/composables/useRooms';
 
@@ -11,12 +11,25 @@ import Menu from 'primevue/menu';
 import Button from 'primevue/button'; // Added for a logout button
 
 const router = useRouter();
+const route = useRoute();
 const { user, signOut } = useAuth();
 const { createdRooms, joinedRooms, fetchCreatedRooms, fetchJoinedRooms } = useRooms();
 
-onMounted(async () => {
+const refreshRooms = async () => {
   await fetchCreatedRooms();
   await fetchJoinedRooms();
+};
+
+onMounted(async () => {
+  await refreshRooms();
+});
+
+// Watch for route changes to refresh room data when returning from room operations
+watch(() => route.path, async (newPath) => {
+  // Refresh rooms when navigating to dashboard or main layout areas
+  if (newPath.includes('/main/dashboard') || newPath === '/main') {
+    await refreshRooms();
+  }
 });
 
 // Use computed so the menu reacts automatically when room data arrives from Supabase

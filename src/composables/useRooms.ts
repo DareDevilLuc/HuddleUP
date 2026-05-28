@@ -20,6 +20,13 @@ export function useRooms() {
     const isLoading = ref(false)
     const error = ref<string | null>(null)
 
+    type JoinRoomData = Pick<RoomData, 'room_id' | 'title' | 'status_room' | 'room_code'>
+
+    interface JoinRoomResult {
+        room: JoinRoomData
+        alreadyJoined: boolean
+    }
+
     // Fetch rooms the user created
     const fetchCreatedRooms = async () => {
         if (!user.value) return
@@ -71,11 +78,8 @@ export function useRooms() {
         isLoading.value = true
         error.value = null
 
-        // Generate random code
         const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase()
 
-
-        // 1. Insert into Room table
         const { data: roomData, error: roomError } = await supabase
             .from('Room')
             .insert([
@@ -95,7 +99,6 @@ export function useRooms() {
             return null
         }
 
-        // 2. Insert creator into Joins table
         const { error: joinError } = await supabase
             .from('Joins')
             .insert([
@@ -116,6 +119,83 @@ export function useRooms() {
         return roomData
     }
 
+    const joinRoom = async (roomCode: string): Promise<JoinRoomResult | null> => {
+        if (!user.value) return null
+        isLoading.value = true
+        error.value = null
+
+        const code = roomCode.trim().toUpperCase()
+        const { data: room, error: roomError } = await supabase
+            .from('Room')
+            .select('room_id, title, status_room, room_code')
+            .eq('room_code', code)
+            .maybeSingle()
+
+        if (roomError || !room) {
+            error.value = roomError?.message || 'No room found with that code.'
+            isLoading.value = false
+            return null
+        }
+
+        if (room.status_room !== 'active') {
+            error.value = 'This room is no longer active.'
+            isLoading.value = false
+            return null
+        }
+
+        const { data: existing, error: existingError } = await supabase
+            .from('Joins')
+            .select('room_id')
+            .eq('room_id', room.room_id)
+            .eq('user_id', user.value.id)
+            .maybeSingle()
+
+        if (existingError) {
+            error.value = existingError.message
+            isLoading.value = false
+            return null
+        }
+
+        if (existing) {
+            isLoading.value = false
+            return { room, alreadyJoined: true }
+        }
+
+        const { error: joinError } = await supabase
+            .from('Joins')
+            .insert([{ room_id: room.room_id, user_id: user.value.id, role: 'member' }])
+
+        if (joinError) {
+            error.value = joinError.message
+            isLoading.value = false
+            return null
+        }
+
+        await fetchJoinedRooms()
+        isLoading.value = false
+        return { room, alreadyJoined: false }
+    }
+
+    const leaveRoom = async (roomId: string): Promise<boolean> => {
+        if (!user.value) return false
+        error.value = null
+
+        const { error: leaveError } = await supabase
+            .from('Joins')
+            .delete()
+            .eq('room_id', roomId)
+            .eq('user_id', user.value.id)
+
+        if (leaveError) {
+            error.value = leaveError.message
+            return false
+        }
+
+        await fetchCreatedRooms()
+        await fetchJoinedRooms()
+        return true
+    }
+
     return {
         createdRooms,
         joinedRooms,
@@ -123,6 +203,8 @@ export function useRooms() {
         error,
         fetchCreatedRooms,
         fetchJoinedRooms,
-        createRoom
+        createRoom,
+        joinRoom,
+        leaveRoom
     }
 }

@@ -1,45 +1,182 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { supabase } from '../../utils/supabase'
 import { useAuth } from './useAuth'
 
 export interface TaskData {
-    task_id : string
-    title : string
-    status_task : string
-    completed_at : string | null
-    task_created_at : string
-    task_creator_id : string
-    task_room_id : string
+    task_id: string
+    title: string
+    status_task: string
+    completed_at: string | null
+    task_created_at: string
+    task_creator_id: string
+    task_room_id: string
 }
 
+interface RoomInfo {
+    room_id: string
+    title: string
+    room_creator_id: string
+}
 
 export function useTasks() {
     const { user } = useAuth()
+    const room = ref<RoomInfo | null>(null)
     const assignedTasks = ref<TaskData[]>([])
     const isLoading = ref(false)
     const error = ref<string | null>(null)
-    assignedTasks.value = []
-    
-    const fetchAssignedTasks = async (room_id : string) => {
-       if(!user.value) return 
-       isLoading.value = true
-       error.value = null
 
-       const { data, error: sbError } = await supabase
-       .from('Assigned_To')
-       .select('*, Task(*)')
-       .eq('Task.task_room_id', room_id)
-       .eq('user_id', user.value.id)
+    const isAdmin = computed(() => {
+        return Boolean(user.value && room.value?.room_creator_id === user.value.id)
+    })
 
-       if(sbError) {
-        error.value = sbError.message
-       } else if (data) {
-        assignedTasks.value = data
-            .map((item : any) => item.Task)
-            .filter((task : any) => task !== null)
-       }
-       isLoading.value = false
+    const fetchAssignedTasks = async (room_id: string) => {
+        if (!user.value) return
+        isLoading.value = true
+        error.value = null
+
+        const { data, error: sbError } = await supabase
+            .from('Task')
+            .select('*')
+            .eq('task_room_id', room_id)
+
+        if (sbError) {
+            error.value = sbError.message
+        } else if (data) {
+            assignedTasks.value = data
+        }
+
+        isLoading.value = false
     }
 
-    return { fetchAssignedTasks, assignedTasks, isLoading, error}
+    const loadRoom = async (roomCodeID: string) => {
+        if (!roomCodeID) return null
+        isLoading.value = true
+        error.value = null
+
+        const { data: roomData, error: roomError } = await supabase
+            .from('Room')
+            .select('room_id, title, room_creator_id')
+            .eq('room_code', roomCodeID)
+            .single()
+
+        if (roomError || !roomData) {
+            error.value = roomError?.message || 'No room found with that code.'
+            isLoading.value = false
+            return null
+        }
+
+        room.value = roomData
+        await fetchAssignedTasks(roomData.room_id)
+        isLoading.value = false
+        return roomData
+    }
+
+    const createTask = async (title: string) => {
+        if (!user.value || !room.value || !title.trim()) return null
+        isLoading.value = true
+        error.value = null
+
+        const { data: taskData, error: taskError } = await supabase
+            .from('Task')
+            .insert({
+                title: title.trim(),
+                task_creator_id: user.value.id,
+                task_room_id: room.value.room_id,
+                status_task: 'active',
+                task_created_at: new Date().toISOString()
+            })
+            .select()
+            .single()
+
+        if (taskError || !taskData) {
+            error.value = taskError?.message || 'Failed to create task.'
+            isLoading.value = false
+            return null
+        }
+
+        const { data: members, error: membersError } = await supabase
+            .from('Joins')
+            .select('user_id')
+            .eq('room_id', room.value.room_id)
+
+        if (membersError || !members) {
+            error.value = membersError?.message || 'Failed to fetch room members.'
+            isLoading.value = false
+            return null
+        }
+
+        const assignments = members.map((member: any) => ({
+            task_id: taskData.task_id,
+            user_id: member.user_id,
+            assigned_at: new Date().toISOString()
+        }))
+
+        const { error: assignError } = await supabase
+            .from('Assigned_To')
+            .insert(assignments)
+
+        if (assignError) {
+            error.value = assignError.message
+            isLoading.value = false
+            return null
+        }
+
+        await fetchAssignedTasks(room.value.room_id)
+        isLoading.value = false
+        return taskData
+    }
+
+    const deleteTask = async (taskId: string) => {
+        if (!taskId) return false
+        error.value = null
+
+        const { error: taskError } = await supabase
+            .from('Task')
+            .delete()
+            .eq('task_id', taskId)
+
+        if (taskError) {
+            error.value = taskError.message
+            return false
+        }
+
+        assignedTasks.value = assignedTasks.value.filter((task) => task.task_id !== taskId)
+        return true
+    }
+
+    const toggleTask = async (task: TaskData) => {
+        if (!task) return false
+        error.value = null
+
+        const newStatus = task.status_task === 'active' ? 'inactive' : 'active'
+        const { error: updateError } = await supabase
+            .from('Task')
+            .update({
+                status_task: newStatus,
+                completed_at: newStatus === 'inactive' ? new Date().toISOString() : null
+            })
+            .eq('task_id', task.task_id)
+
+        if (updateError) {
+            error.value = updateError.message
+            return false
+        }
+
+        task.status_task = newStatus
+        task.completed_at = newStatus === 'inactive' ? new Date().toISOString() : null
+        return true
+    }
+
+    return {
+        room,
+        isAdmin,
+        fetchAssignedTasks,
+        loadRoom,
+        createTask,
+        deleteTask,
+        toggleTask,
+        assignedTasks,
+        isLoading,
+        error
+    }
 }

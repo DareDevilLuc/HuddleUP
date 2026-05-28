@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useAuth } from '@/composables/useAuth'
 import { useRooms } from '@/composables/useRooms'
-import { supabase } from '../../utils/supabase'
 
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
@@ -14,8 +12,7 @@ import { useToast } from 'primevue/usetoast'
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
-const { user } = useAuth()
-const { createdRooms, joinedRooms, fetchCreatedRooms, fetchJoinedRooms, createRoom, isLoading, error } = useRooms()
+const { createdRooms, joinedRooms, fetchCreatedRooms, fetchJoinedRooms, createRoom, joinRoom, isLoading, error } = useRooms()
 
 // --- Create Room Dialog ---
 const showCreateDialog = ref(false)
@@ -43,53 +40,27 @@ const handleJoinRoom = async () => {
   if (!joinCode.value.trim()) return
   isJoining.value = true
 
-  const { data: room, error: roomError } = await supabase
-    .from('Room')
-    .select('room_id, title, status_room')
-    .eq('room_code', joinCode.value.trim().toUpperCase())
-    .single()
+  const result = await joinRoom(joinCode.value.trim().toUpperCase())
 
-  if (roomError || !room) {
-    toast.add({ severity: 'error', summary: 'Not Found', detail: 'No room found with that code.', life: 3000 })
+  if (!result) {
+    toast.add({ severity: 'error', summary: 'Error', detail: error.value || 'Could not join the room.', life: 3000 })
     isJoining.value = false
     return
   }
 
-  if (room.status_room !== 'active') {
-    toast.add({ severity: 'warn', summary: 'Room Closed', detail: 'This room is no longer active.', life: 3000 })
+  if (result.alreadyJoined) {
+    toast.add({ severity: 'info', summary: 'Already Joined', detail: `You are already in "${result.room.title}".`, life: 3000 })
+    router.push(`/main/rooms/${joinCode.value.trim().toUpperCase()}`)
     isJoining.value = false
     return
   }
 
-  const { data: existing } = await supabase
-    .from('Joins')
-    .select('room_id')
-    .eq('room_id', room.room_id)
-    .eq('user_id', user.value?.id)
-    .single()
-
-  if (existing) {
-    toast.add({ severity: 'info', summary: 'Already Joined', detail: `You are already in "${room.title}".`, life: 3000 })
-    router.push(`/rooms/${joinCode.value.trim().toUpperCase()}`)
-    isJoining.value = false
-    return
-  }
-
-  const { error: joinError } = await supabase
-    .from('Joins')
-    .insert([{ room_id: room.room_id, user_id: user.value?.id, role: 'member' }])
-
-  if (joinError) {
-    toast.add({ severity: 'error', summary: 'Error', detail: 'Could not join the room.', life: 3000 })
-  } else {
-    toast.add({ severity: 'success', summary: 'Joined!', detail: `Welcome to "${room.title}"`, life: 3000 })
-    await fetchJoinedRooms()
-    showJoinDialog.value = false
-    const code = joinCode.value.trim().toUpperCase()
-    joinCode.value = ''
-    router.push(`/rooms/${code}`)
-  }
-
+  toast.add({ severity: 'success', summary: 'Joined!', detail: `Welcome to "${result.room.title}"`, life: 3000 })
+  await fetchJoinedRooms()
+  showJoinDialog.value = false
+  const code = joinCode.value.trim().toUpperCase()
+  joinCode.value = ''
+  router.push(`/main/rooms/${code}`)
   isJoining.value = false
 }
 
@@ -121,7 +92,7 @@ onMounted(async () => {
 
 <template>
   <Toast />
-
+<!--  -->
   <div class="dashboard">
     <!-- Loading -->
     <div v-if="isLoading" class="loading-state">

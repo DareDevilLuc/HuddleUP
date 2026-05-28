@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { useRoute } from 'vue-router';
-import { useTasks } from '@/composables/useTasks';
-import { onMounted, watch } from 'vue';
-import { supabase } from '../../utils/supabase';
-import { Toast } from 'primevue';
+import { ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useTasks } from '@/composables/useTasks'
+import { useRooms } from '@/composables/useRooms'
+import { onMounted, watch } from 'vue'
+import { Toast } from 'primevue'
 import { useToast } from 'primevue/usetoast'
-import { useAuth } from '@/composables/useAuth';
-import Button from 'primevue/button';
-import Checkbox from 'primevue/checkbox';
+import Button from 'primevue/button'
+import Checkbox from 'primevue/checkbox'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 
@@ -16,126 +15,91 @@ const showCreateTask = ref(false)
 const newTaskTitle = ref('')
 const isSubmitting = ref(false)
 
-const { fetchAssignedTasks, assignedTasks, isLoading, error } = useTasks()
+const {
+  assignedTasks,
+  isLoading,
+  error,
+  loadRoom,
+  createTask: createTaskAction,
+  deleteTask,
+  toggleTask,
+  room,
+  isAdmin
+} = useTasks()
+
 const toast = useToast()
+const router = useRouter()
 const route = useRoute()
-const { user } = useAuth()
-const room_title = ref('')
-const room_creator_id = ref('')
+const { leaveRoom } = useRooms()
 const roomCode = route.params.roomCode as string
-const room_id = ref('')
 
 const createTask = async () => {
-    if (!newTaskTitle.value.trim()) {
-        toast.add({ severity: 'warn', summary: 'Validation', detail: 'Task title is required.', life: 3000 })
-        return
-    }
-    isSubmitting.value = true
+  if (!newTaskTitle.value.trim()) {
+    toast.add({ severity: 'warn', summary: 'Validation', detail: 'Task title is required.', life: 3000 })
+    return
+  }
 
-    // 1. Insert the task
-    const { data: taskData, error: taskError } = await supabase
-        .from('Task')
-        .insert({
-            title: newTaskTitle.value.trim(),
-            task_creator_id: user.value?.id,
-            task_room_id: room_id.value,
-            status_task: 'active',
-            task_created_at: new Date().toISOString()
-        })
-        .select()
-        .single()
+  isSubmitting.value = true
+  const task = await createTaskAction(newTaskTitle.value.trim())
 
-    if (taskError || !taskData) {
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to create task.', life: 3000 })
-        isSubmitting.value = false
-        return
-    }
-
-    // 2. Get all members of the room from Joins
-    const { data: members, error: membersError } = await supabase
-        .from('Joins')
-        .select('user_id')
-        .eq('room_id', room_id.value)
-
-    if (membersError || !members) {
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to fetch room members.', life: 3000 })
-        isSubmitting.value = false
-        return
-    }
-
-    // 3. Insert into Assigned_To for every member
-    const assignments = members.map((member: any) => ({
-        task_id: taskData.task_id,
-        user_id: member.user_id,
-        assigned_at: new Date().toISOString()
-    }))
-
-    const { error: assignError } = await supabase
-        .from('Assigned_To')
-        .insert(assignments)
-
-    if (assignError) {
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to assign task to members.', life: 3000 })
-        isSubmitting.value = false
-        return
-    }
-
-    toast.add({ severity: 'success', summary: 'Done', detail: 'Task created and assigned!', life: 3000 })
-    newTaskTitle.value = ''
-    showCreateTask.value = false
-    await fetchAssignedTasks(room_id.value)
+  if (!task) {
+    toast.add({ severity: 'error', summary: 'Error', detail: error.value || 'Failed to create task.', life: 3000 })
     isSubmitting.value = false
+    return
+  }
+
+  toast.add({ severity: 'success', summary: 'Done', detail: 'Task created and assigned!', life: 3000 })
+  newTaskTitle.value = ''
+  showCreateTask.value = false
+  isSubmitting.value = false
 }
 
-const loadRoom = async (roomCodeID: string) => {
-    const { data: room, error: roomError } = await supabase
-        .from('Room')
-        .select('room_id, title, room_creator_id')
-        .eq('room_code', roomCodeID)
-        .single()
-    if (roomError || !room) {
-        toast.add({ severity: 'error', summary: 'Not Found', detail: 'No room found with that code.', life: 3000 })
-        return
-    }
-    fetchAssignedTasks(room.room_id)
-    room_title.value = room.title
-    room_creator_id.value = room.room_creator_id
-    room_id.value = room.room_id
+const handleDeleteTask = async (task: any) => {
+  const success = await deleteTask(task.task_id)
+  if (!success) {
+    toast.add({ severity: 'error', summary: 'Error', detail: error.value || 'Failed to delete task.', life: 3000 })
+    return
+  }
+
+  toast.add({ severity: 'success', summary: 'Deleted', detail: 'Task deleted.', life: 3000 })
+}
+
+const loadRoomData = async (roomCodeID: string) => {
+  const roomResult = await loadRoom(roomCodeID)
+  if (!roomResult) {
+    toast.add({ severity: 'error', summary: 'Not Found', detail: error.value || 'No room found with that code.', life: 3000 })
+  }
+  return roomResult
+}
+
+const handleLeaveRoom = async () => {
+  if (!room.value) return
+  const success = await leaveRoom(room.value.room_id)
+  if (!success) {
+    toast.add({ severity: 'error', summary: 'Error', detail: error.value || 'Failed to leave room.', life: 3000 })
+    return
+  }
+  toast.add({ severity: 'success', summary: 'Left Room', detail: 'You have left the room.', life: 3000 })
+  router.push('/main')
 }
 
 onMounted(async () => {
-    await loadRoom(roomCode)
+  await loadRoomData(roomCode)
 })
 
 watch(() => route.params.roomCode as string, async (newRoomCode: string) => {
-    await loadRoom(newRoomCode)
+  await loadRoomData(newRoomCode)
 })
-
-const isAdmin = computed(() => user.value?.id === room_creator_id.value)
-
-const toggleTask = async (task: any) => {
-    const newStatus = task.status_task === 'active' ? 'inactive' : 'active'
-    const { error } = await supabase
-        .from('Task')
-        .update({
-            status_task: newStatus,
-            completed_at: newStatus === 'inactive' ? new Date().toISOString() : null
-        })
-        .eq('task_id', task.task_id)
-    if (error) {
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to update task.', life: 3000 })
-        return
-    }
-    task.status_task = newStatus
-    task.completed_at = newStatus === 'inactive' ? new Date().toISOString() : null
-}
 </script>
 
 <template>
     <Toast />
     <div class="room">
-        <div style="font-size: xx-large; font-weight: bold;">
-            {{ room_title }}
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <div style="font-size: xx-large; font-weight: bold;">
+                {{ room?.title }}
+            </div>
+            <Button v-if="!isAdmin" label="Leave Room" icon="pi pi-sign-out" severity="secondary" @click="handleLeaveRoom" />
         </div>
         <div v-if="isAdmin">
             <Button label="Create Task" icon="pi pi-plus" @click="showCreateTask = true" />
@@ -160,6 +124,8 @@ const toggleTask = async (task: any) => {
                     <Checkbox :modelValue="task.status_task === 'inactive'" :binary="true" :disabled="!isAdmin"
                         @click.stop />
                     <span class="task-title">{{ task.title }}</span>
+                    <Button v-if="isAdmin" icon="pi pi-trash" severity="danger" text rounded
+                        @click.stop="handleDeleteTask(task)" />
                 </div>
             </div>
         </template>
