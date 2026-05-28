@@ -70,7 +70,7 @@ const handleJoinRoom = async () => {
 
   if (existing) {
     toast.add({ severity: 'info', summary: 'Already Joined', detail: `You are already in "${room.title}".`, life: 3000 })
-    router.push(`/room/${joinCode.value.trim().toUpperCase()}`)
+    router.push(`/rooms/${joinCode.value.trim().toUpperCase()}`)
     isJoining.value = false
     return
   }
@@ -87,14 +87,14 @@ const handleJoinRoom = async () => {
     showJoinDialog.value = false
     const code = joinCode.value.trim().toUpperCase()
     joinCode.value = ''
-    router.push(`/room/${code}`)
+    router.push(`/rooms/${code}`)
   }
 
   isJoining.value = false
 }
 
 const goToRoom = (roomCode: string) => {
-  router.push(`/room/${roomCode}`)
+  router.push(`/main/rooms/${roomCode}`)
 }
 
 const formatDate = (dateStr: string) => {

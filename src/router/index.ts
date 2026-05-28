@@ -22,6 +22,7 @@ const routes = [
     children: [
       { path: '', redirect: '/main/dashboard' },
       { path: 'dashboard', component: () => import('../pages/DashboardPage.vue'), meta: { requiresAuth: true }},
+      { path: 'rooms/:roomCode', component: () => import('../pages/RoomPage.vue'), meta: { requiresAuth: true }}
     ]
   }
 

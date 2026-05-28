@@ -24,33 +24,33 @@ const items = computed(() => [
   {
     label: 'NAVIGATION',
     items: [
-      { 
-        label: 'Dashboard', 
+      {
+        label: 'Dashboard',
         icon: 'pi pi-home',
-        command: () => router.push('/main/dashboard') 
+        command: () => router.push('/main/dashboard')
       },
     ]
   },
   {
     label: 'JOINED ROOMS',
-    items: joinedRooms.value.length 
+    items: joinedRooms.value.length
       ? joinedRooms.value.map(room => ({
-          label: room.title,
-          icon: 'pi pi-users',
-          //Navigate to the room when clicked
-          command: () => router.push(`/room/${room.room_code}`) 
-        })) 
+        label: room.title,
+        icon: 'pi pi-users',
+        //Navigate to the room when clicked
+        command: () => router.push(`/main/rooms/${room.room_code}`)
+      }))
       : [{ label: 'No joined rooms yet', disabled: true }]
   },
   {
     label: 'CREATED ROOMS',
-    items: createdRooms.value.length 
+    items: createdRooms.value.length
       ? createdRooms.value.map(room => ({
-          label: room.title,
-          icon: 'pi pi-folder',
-          //Navigate to the room when clicked
-          command: () => router.push(`/room/${room.room_code}`) 
-        })) 
+        label: room.title,
+        icon: 'pi pi-folder',
+        //Navigate to the room when clicked
+        command: () => router.push(`/main/rooms/${room.room_code}`)
+      }))
       : [{ label: 'No created rooms yet', disabled: true }]
   },
 ]);
@@ -77,7 +77,8 @@ const handleSignOut = async () => {
             </div>
           </div>
           <div style="padding: 0 1rem 1rem 1rem;">
-            <Button label="Log Out" icon="pi pi-sign-out" severity="secondary" size="small" outlined @click="handleSignOut" style="width: 100%" />
+            <Button label="Log Out" icon="pi pi-sign-out" severity="secondary" size="small" outlined
+              @click="handleSignOut" style="width: 100%" />
           </div>
           <Divider />
         </template>
@@ -85,13 +86,15 @@ const handleSignOut = async () => {
 
       <!-- Bottom actions -->
       <div class="sidebar-bottom">
-        <Button label="Join Room" icon="pi pi-sign-in" severity="secondary" outlined style="width: 100%" @click="$router.push('/main/dashboard?action=join')" />
-        <Button label="Create Room" icon="pi pi-plus" style="width: 100%" @click="$router.push('/main/dashboard?action=create')" />
+        <Button label="Join Room" icon="pi pi-sign-in" severity="secondary" outlined style="width: 100%"
+          @click="$router.push('/main/dashboard?action=join')" />
+        <Button label="Create Room" icon="pi pi-plus" style="width: 100%"
+          @click="$router.push('/main/dashboard?action=create')" />
       </div>
     </div>
 
     <div class="content-container">
-      <RouterView /> 
+      <RouterView />
     </div>
   </div>
 </template>
