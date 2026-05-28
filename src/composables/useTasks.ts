@@ -18,6 +18,7 @@ export function useTasks() {
     const assignedTasks = ref<TaskData[]>([])
     const isLoading = ref(false)
     const error = ref<string | null>(null)
+    assignedTasks.value = []
     
     const fetchAssignedTasks = async (room_id : string) => {
        if(!user.value) return 
@@ -35,9 +36,8 @@ export function useTasks() {
        } else if (data) {
         assignedTasks.value = data
             .map((item : any) => item.Task)
+            .filter((task : any) => task !== null)
        }
-
-
        isLoading.value = false
     }
 
