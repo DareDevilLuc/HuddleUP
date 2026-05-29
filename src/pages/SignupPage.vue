@@ -11,6 +11,7 @@ const router = useRouter()
 const { signUp } = useAuth()
 
 const email = ref('')
+const username = ref('')
 const pass = ref('')
 const verify = ref('')
 const error = ref('')
@@ -20,7 +21,7 @@ const handleSignup = async () => {
   error.value = ''
   success.value = ''
 
-  if (!email.value.trim() || !pass.value.trim() || !verify.value.trim()) {
+  if (!email.value.trim() || !pass.value.trim() || !verify.value.trim() || !username.value.trim()) {
     error.value = 'Please complete all fields.'
     return
   }
@@ -31,7 +32,7 @@ const handleSignup = async () => {
   }
 
   try {
-    await signUp(email.value, pass.value)
+    await signUp(email.value, pass.value, username.value)
     success.value = 'Signup successful! Redirecting to login...'
     router.replace('/login')
   } catch (e: any) {
@@ -53,6 +54,11 @@ const handleSignup = async () => {
           <FloatLabel class="input-field" variant="in">
             <InputText id="email" v-model="email" type="email" autocomplete="email" />
             <label for="email">Email</label>
+          </FloatLabel>
+
+          <FloatLabel class="input-field" variant="in">
+            <InputText id="username" v-model="username" type="username" autocomplete="username" />
+            <label for="username">Username</label>
           </FloatLabel>
 
           <FloatLabel class="input-field" variant="in">

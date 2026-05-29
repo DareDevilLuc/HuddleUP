@@ -6,9 +6,13 @@ const user = ref<User | null>(null)
 
 export function useAuth() {
   // Sign up
-  const signUp = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password })
+  const signUp = async (email: string, password: string, username: string) => {
+    const { data, error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: {data: {username}}})
     if (error) throw error
+
     return data
   }
 
