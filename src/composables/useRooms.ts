@@ -10,7 +10,10 @@ export interface RoomData {
   room_creator_id: string
   closed_at: string | null
   room_created_at: string
+  // NEW: Added this so TypeScript knows rooms can have members
+  members?: { user_id: string }[]
 }
+
 const { user } = useAuth()
 const createdRooms = ref<RoomData[]>([])
 const joinedRooms = ref<RoomData[]>([])
@@ -33,7 +36,8 @@ export function useRooms() {
 
     const { data, error: sbError } = await supabase
       .from('Room')
-      .select('*')
+      // NEW: We now ask for the members via the Joins table
+      .select('*, members:Joins(user_id)')
       .eq('room_creator_id', user.value.id)
       .eq('status_room', 'active')
 
@@ -51,12 +55,13 @@ export function useRooms() {
 
     const { data, error: sbError } = await supabase
       .from('Joins')
-      .select(
-        `
+      .select(`
         room_id,
-        Room ( * )
-      `,
-      )
+        Room ( 
+          *,
+          members:Joins(user_id) 
+        )
+      `) // NEW: Added members to the nested Room query
       .eq('user_id', user.value.id)
 
     if (sbError) {

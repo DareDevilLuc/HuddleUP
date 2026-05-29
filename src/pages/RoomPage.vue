@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTasks } from '@/composables/useTasks'
 import { useRooms } from '@/composables/useRooms'
-import { onMounted, watch } from 'vue'
-import { Toast } from 'primevue'
 import { useToast } from 'primevue/usetoast'
+
+import Toast from 'primevue/toast'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
+import Avatar from 'primevue/avatar'
 
 const showCreateTask = ref(false)
 const newTaskTitle = ref('')
@@ -35,14 +36,16 @@ const route = useRoute()
 const { leaveRoom, deleteRoom } = useRooms()
 const roomCode = route.params.roomCode as string
 
+// Calculate overall room progress based on completed tasks
+const overallProgress = computed(() => {
+  if (!assignedTasks.value || assignedTasks.value.length === 0) return 0
+  const done = assignedTasks.value.filter(t => t.marked_done).length
+  return Math.round((done / assignedTasks.value.length) * 100)
+})
+
 const createTask = async () => {
   if (!newTaskTitle.value.trim()) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Validation',
-      detail: 'Task title is required.',
-      life: 3000,
-    })
+    toast.add({ severity: 'warn', summary: 'Validation', detail: 'Task title is required.', life: 3000 })
     return
   }
 
@@ -50,22 +53,12 @@ const createTask = async () => {
   const task = await createTaskAction(newTaskTitle.value.trim())
 
   if (!task) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: error.value || 'Failed to create task.',
-      life: 3000,
-    })
+    toast.add({ severity: 'error', summary: 'Error', detail: error.value || 'Failed to create task.', life: 3000 })
     isSubmitting.value = false
     return
   }
 
-  toast.add({
-    severity: 'success',
-    summary: 'Done',
-    detail: 'Task created and assigned!',
-    life: 3000,
-  })
+  toast.add({ severity: 'success', summary: 'Done', detail: 'Task created and assigned!', life: 3000 })
   newTaskTitle.value = ''
   showCreateTask.value = false
   isSubmitting.value = false
@@ -74,27 +67,16 @@ const createTask = async () => {
 const handleDeleteTask = async (task: any) => {
   const success = await deleteTask(task.task_id)
   if (!success) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: error.value || 'Failed to delete task.',
-      life: 3000,
-    })
+    toast.add({ severity: 'error', summary: 'Error', detail: error.value || 'Failed to delete task.', life: 3000 })
     return
   }
-
   toast.add({ severity: 'success', summary: 'Deleted', detail: 'Task deleted.', life: 3000 })
 }
 
 const loadRoomData = async (roomCodeID: string) => {
   const roomResult = await loadRoom(roomCodeID)
   if (!roomResult) {
-    toast.add({
-      severity: 'error',
-      summary: 'Not Found',
-      detail: error.value || 'No room found with that code.',
-      life: 3000,
-    })
+    toast.add({ severity: 'error', summary: 'Not Found', detail: error.value || 'No room found.', life: 3000 })
   }
   return roomResult
 }
@@ -103,48 +85,24 @@ const handleLeaveRoom = async () => {
   if (!room.value) return
   const success = await leaveRoom(room.value.room_id)
   if (!success) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: error.value || 'Failed to leave room.',
-      life: 3000,
-    })
+    toast.add({ severity: 'error', summary: 'Error', detail: error.value || 'Failed to leave room.', life: 3000 })
     return
   }
-  toast.add({
-    severity: 'success',
-    summary: 'Left Room',
-    detail: 'You have left the room.',
-    life: 3000,
-  })
+  toast.add({ severity: 'success', summary: 'Left Room', detail: 'You have left the room.', life: 3000 })
   router.push('/main')
 }
 
 const handleDeleteRoom = async () => {
   if (!room.value) return
-
-  const confirmed = window.confirm(
-    'Delete this room and all tasks permanently? This cannot be undone.',
-  )
+  const confirmed = window.confirm('Delete this room and all tasks permanently? This cannot be undone.')
   if (!confirmed) return
 
   const success = await deleteRoom(room.value.room_id)
   if (!success) {
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: error.value || 'Failed to delete room.',
-      life: 3000,
-    })
+    toast.add({ severity: 'error', summary: 'Error', detail: error.value || 'Failed to delete room.', life: 3000 })
     return
   }
-
-  toast.add({
-    severity: 'success',
-    summary: 'Deleted',
-    detail: 'Room and all tasks were removed.',
-    life: 3000,
-  })
+  toast.add({ severity: 'success', summary: 'Deleted', detail: 'Room and all tasks were removed.', life: 3000 })
   router.push('/main')
 }
 
@@ -157,7 +115,7 @@ watch(
   () => route.params.roomCode as string,
   async (newRoomCode: string) => {
     await loadRoomData(newRoomCode)
-  },
+  }
 )
 </script>
 
@@ -165,156 +123,378 @@ watch(
   <Toast />
 
   <div class="room-page">
-    <div class="room-header">
-      <div>
-        <h1 class="room-page-title">{{ room?.title || 'Room' }}</h1>
+    
+    <div class="room-header-card">
+      <div class="header-top-row">
+        <h1 class="room-title">{{ room?.title || 'Loading Room...' }}</h1>
+        
+        <div class="header-actions">
+          <Button v-if="isAdmin" icon="pi pi-trash" severity="danger" text rounded @click="handleDeleteRoom" title="Delete Room" />
+          <Button v-else icon="pi pi-sign-out" severity="secondary" text rounded @click="handleLeaveRoom" title="Leave Room" />
+          
+          <div class="code-badge">{{ route.params.roomCode }}</div>
+        </div>
       </div>
-      <div class="room-header-actions">
-        <Button
-          v-if="isAdmin"
-          label="Create Task"
-          icon="pi pi-plus"
-          class="action-button"
-          @click="showCreateTask = true"
-        />
-        <Button
-          v-if="isAdmin"
-          label="Delete Room"
-          icon="pi pi-trash"
-          severity="danger"
-          class="action-button"
-          @click="handleDeleteRoom"
-        />
-        <Button
-          v-else
-          label="Leave Room"
-          icon="pi pi-sign-out"
-          severity="secondary"
-          class="action-button"
-          @click="handleLeaveRoom"
-        />
-      </div>
-    </div>
 
-    <div class="room-meta">
-      <span class="room-pill">{{ isAdmin ? 'Owner' : 'Member' }}</span>
-      <span class="room-label"
-        >Code: <strong>{{ route.params.roomCode }}</strong></span
-      >
-      <div class="members-section">
-        <span class="room-label">
-          <i class="pi pi-users" /> {{ members.length }}
-          {{ members.length === 1 ? 'Member' : 'Members' }}
-        </span>
-        <div class="members-list">
-          <span v-for="member in members" :key="member.user_id" class="member-pill">
-            {{ member.username }}
-          </span>
+      <div class="room-progress-section">
+        <span class="progress-text">{{ overallProgress }}%</span>
+        <div class="progress-track">
+          <div class="progress-fill" :style="{ width: overallProgress + '%' }"></div>
         </div>
       </div>
     </div>
 
-    <Dialog v-model:visible="showCreateTask" header="Create Task" modal class="task-dialog">
-      <div class="dialog-body">
-        <InputText v-model="newTaskTitle" placeholder="Task title" class="dialog-input" />
-        <Button label="Submit" :loading="isSubmitting" class="dialog-submit" @click="createTask" />
+    <div class="room-content-grid">
+      
+      <div class="tasks-column">
+        <div class="column-header">
+          <h2 class="section-title">Tasks ({{ assignedTasks.length }})</h2>
+          <Button 
+            v-if="isAdmin" 
+            label="Add New Task" 
+            icon="pi pi-plus-circle" 
+            class="btn-add-task" 
+            @click="showCreateTask = true" 
+          />
+        </div>
+
+        <div v-if="isLoading" class="loading-state">
+          <i class="pi pi-spin pi-spinner" /> Loading tasks...
+        </div>
+        
+        <div v-else-if="assignedTasks.length === 0" class="empty-state">
+          No tasks yet. Create one to get started!
+        </div>
+
+        <div v-else class="task-list">
+          <div 
+            v-for="task in assignedTasks" 
+            :key="task.task_id" 
+            class="task-card"
+            :class="{ 'is-done': task.marked_done }"
+            @click="toggleTask(task)"
+          >
+            <div class="task-card-left">
+              <Checkbox :modelValue="task.marked_done" :binary="true" class="task-checkbox" @click.stop="toggleTask(task)" />
+              <div class="task-info">
+                <span class="task-title">{{ task.title }}</span>
+                <span class="task-desc">Task assigned to you and others. Please complete this before the deadline.</span>
+              </div>
+            </div>
+            
+            <div class="task-card-right">
+              <div class="avatar-group">
+                <Avatar v-for="(member, index) in members.slice(0,3)" :key="member.user_id" icon="pi pi-user" shape="circle" class="overlap-avatar" />
+              </div>
+              <Button v-if="isAdmin" icon="pi pi-trash" severity="danger" text rounded @click.stop="handleDeleteTask(task)" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="members-column">
+        <div class="column-header">
+          <h2 class="section-title">Members ({{ members.length }})</h2>
+        </div>
+        <hr class="section-divider" />
+
+        <div class="members-list">
+          <div v-for="member in members" :key="member.user_id" class="member-item">
+            <Avatar icon="pi pi-user" size="large" shape="circle" class="member-avatar" />
+            
+            <div class="member-info">
+              <span class="member-name">{{ member.username }} <span v-if="member.user_id === room?.created_by" class="owner-badge">(Owner)</span></span>
+              <div class="member-progress-track">
+                <div class="member-progress-fill" :style="{ width: overallProgress + '%' }"></div>
+              </div>
+            </div>
+            
+            <span class="member-percent">{{ overallProgress }}%</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <Dialog v-model:visible="showCreateTask" header="Create New Task" modal :style="{ width: '400px' }">
+      <div class="dialog-content">
+        <InputText v-model="newTaskTitle" placeholder="What needs to be done?" class="w-full" @keyup.enter="createTask" autofocus />
+        <div class="dialog-actions mt-3 flex justify-end">
+          <Button label="Cancel" text severity="secondary" @click="showCreateTask = false" />
+          <Button label="Add Task" :loading="isSubmitting" @click="createTask" />
+        </div>
       </div>
     </Dialog>
 
-    <div v-if="isLoading" class="loading-state">
-      <i class="pi pi-spin pi-spinner" />
-      <p>Loading your tasks...</p>
-    </div>
-
-    <template v-else>
-      <div v-if="assignedTasks.length === 0" class="empty-tasks">
-        <i class="pi pi-inbox" />
-        <p>No tasks yet. Create one to keep your room moving.</p>
-      </div>
-
-      <div v-else class="task-list">
-        <div
-          v-for="task in assignedTasks"
-          :key="task.task_id"
-          class="task-card"
-          :class="{ completed: task.marked_done }"
-          @click="toggleTask(task)"
-        >
-          <Checkbox :modelValue="task.marked_done" :binary="true" @click.stop="toggleTask(task)" />
-          <span class="task-title">{{ task.title }}</span>
-          <span class="done-counter">{{ task.done_count }}/{{ task.total_count }}</span>
-          <Button
-            v-if="isAdmin"
-            icon="pi pi-trash"
-            severity="danger"
-            text
-            rounded
-            class="delete-button"
-            @click.stop="handleDeleteTask(task)"
-          />
-        </div>
-      </div>
-    </template>
   </div>
 </template>
 
 <style scoped>
+/* ── Layout & Page ── */
+.room-page {
+  padding: 2rem 2.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ── Top Header Card ── */
+.room-header-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 1.75rem 2.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+}
+
+.header-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.room-title {
+  font-size: 2.8rem;
+  font-weight: 800;
+  color: #7E9E34; /* Green matching your image */
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.code-badge {
+  background: #4279CC;
+  color: white;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  letter-spacing: 0.05em;
+}
+
+/* Overall Progress Bar */
+.room-progress-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.progress-text {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #555;
+}
+
+.progress-track {
+  width: 100%;
+  height: 14px;
+  background: #e9ecef;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #4279CC;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+/* ── Content Grid ── */
+.room-content-grid {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr;
+  gap: 3rem;
+}
+
+/* ── Column Shared ── */
+.column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.section-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #222;
+  margin: 0;
+}
+
+.section-divider {
+  border: none;
+  border-bottom: 2px solid #eaeaea;
+  margin-bottom: 1.5rem;
+}
+
+/* ── Tasks Section ── */
+.btn-add-task {
+  background: #7E9E34 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  font-weight: 600 !important;
+  padding: 0.5rem 1.25rem !important;
+}
+
+.btn-add-task:hover {
+  background: #6e8e24 !important;
+}
+
 .task-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 1rem;
+  gap: 1rem;
 }
 
 .task-card {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  background: #ffffff;
+  border: 1.5px solid #eaeaea;
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
 }
 
 .task-card:hover {
-  background: #f5f5f5;
+  border-color: #d0d0d0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
 }
 
-.task-card.completed .task-title {
-  text-decoration: line-through;
-  color: #aaa;
+.task-card-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  flex: 1;
+}
+
+.task-checkbox {
+  margin-top: 0.2rem;
+}
+
+.task-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .task-title {
-  font-size: 1rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #444;
+  transition: color 0.2s;
 }
 
-.members-section {
+.task-desc {
+  font-size: 0.85rem;
+  color: #a0a0a0;
+  line-height: 1.4;
+  max-width: 90%;
+}
+
+/* Completed Task Styles */
+.task-card.is-done .task-title {
+  text-decoration: line-through;
+  color: #b0b0b0;
+}
+
+.task-card-right {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
+  align-items: center;
+  gap: 1rem;
 }
 
+/* Overlapping Avatars */
+.avatar-group {
+  display: flex;
+  align-items: center;
+}
+
+.overlap-avatar {
+  border: 2px solid #ffffff;
+  margin-left: -10px;
+  background: #e0e0e0;
+  color: #666;
+}
+.overlap-avatar:first-child {
+  margin-left: 0;
+}
+
+/* ── Members Section ── */
 .members-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
-.member-pill {
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.member-avatar {
   background: #f0f0f0;
-  border-radius: 999px;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.85rem;
-  color: #444;
+  color: #666;
+  flex-shrink: 0;
 }
 
-.done-counter {
-  margin-left: auto;
-  font-size: 0.85rem;
-  color: #888;
-  font-weight: 600;
+.member-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
+
+.member-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #222;
+}
+
+.owner-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #7E9E34;
+  margin-left: 0.25rem;
+}
+
+.member-progress-track {
+  width: 100%;
+  height: 6px;
+  background: #e9ecef;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.member-progress-fill {
+  height: 100%;
+  background: #4279CC;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.member-percent {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #555;
+  min-width: 40px;
+  text-align: right;
+}
+
+/* Utilities */
+.w-full { width: 100%; }
+.mt-3 { margin-top: 1rem; }
+.flex { display: flex; }
+.justify-end { justify-content: flex-end; }
 </style>
