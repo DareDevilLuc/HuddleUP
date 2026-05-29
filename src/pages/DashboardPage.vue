@@ -130,7 +130,7 @@ onMounted(async () => {
   <div class="dashboard-page">
 
     <div class="dashboard-header">
-      
+
       <!-- Wrap the titles in a new div so they stack properly -->
       <div class="header-titles">
         <h1 class="dashboard-title">Dashboard</h1>
@@ -138,7 +138,7 @@ onMounted(async () => {
       </div>
 
       <div class="header-illustration">
-        <img src="/placeholder-team.png" alt="Team illustration" class="header-img" />
+        <img src="/placeholder-team.gif" alt="Team illustration" class="header-img" />
         <svg v-if="false" class="header-img" viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
           <rect width="160" height="100" rx="8" fill="#e8f5e9" />
           <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" fill="#81c784" font-size="11" font-family="sans-serif">Team Illustration</text>
@@ -284,8 +284,8 @@ onMounted(async () => {
 }
 
 .header-illustration {
-  width: 220px;  
-  height: 180px; 
+  width: 220px;
+  height: 180px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -303,7 +303,7 @@ onMounted(async () => {
 .stats-row {
   display: flex;
   gap: 0.75rem;
-  margin-top: -2rem; 
+  margin-top: -2rem;
 }
 
 .stat-card {
@@ -364,7 +364,7 @@ onMounted(async () => {
   object-fit: contain;
   bottom: -31px;
   left: -20px;
-  max-width: none; 
+  max-width: none;
   z-index: 10;
 }
 
@@ -542,9 +542,9 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  
+
   /* 👇 New additions for clicking */
-  cursor: pointer; 
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 
