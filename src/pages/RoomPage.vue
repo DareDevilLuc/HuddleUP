@@ -26,6 +26,7 @@ const {
   room,
   isAdmin,
   members,
+  subscribeToTasks,
 } = useTasks()
 
 const toast = useToast()
@@ -120,6 +121,7 @@ const handleLeaveRoom = async () => {
 }
 
 onMounted(async () => {
+  subscribeToTasks()
   await loadRoomData(roomCode)
 })
 
@@ -202,7 +204,7 @@ watch(
           :class="{ completed: task.marked_done }"
           @click="toggleTask(task)"
         >
-          <Checkbox :modelValue="task.marked_done" :binary="true" @click.stop />
+          <Checkbox :modelValue="task.marked_done" :binary="true" @click.stop="toggleTask(task)" />
           <span class="task-title">{{ task.title }}</span>
           <span class="done-counter">{{ task.done_count }}/{{ task.total_count }}</span>
           <Button

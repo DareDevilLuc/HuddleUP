@@ -130,7 +130,6 @@ export function useTasks() {
     room.value = roomData
     await fetchAssignedTasks(roomData.room_id)
     await fetchMembers(roomData.room_id)
-    subscribeToTasks()
     isLoading.value = false
     return roomData
   }
