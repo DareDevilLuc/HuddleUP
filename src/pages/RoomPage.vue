@@ -32,7 +32,7 @@ const {
 const toast = useToast()
 const router = useRouter()
 const route = useRoute()
-const { leaveRoom } = useRooms()
+const { leaveRoom, deleteRoom } = useRooms()
 const roomCode = route.params.roomCode as string
 
 const createTask = async () => {
@@ -120,6 +120,34 @@ const handleLeaveRoom = async () => {
   router.push('/main')
 }
 
+const handleDeleteRoom = async () => {
+  if (!room.value) return
+
+  const confirmed = window.confirm(
+    'Delete this room and all tasks permanently? This cannot be undone.',
+  )
+  if (!confirmed) return
+
+  const success = await deleteRoom(room.value.room_id)
+  if (!success) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.value || 'Failed to delete room.',
+      life: 3000,
+    })
+    return
+  }
+
+  toast.add({
+    severity: 'success',
+    summary: 'Deleted',
+    detail: 'Room and all tasks were removed.',
+    life: 3000,
+  })
+  router.push('/main')
+}
+
 onMounted(async () => {
   subscribeToTasks()
   await loadRoomData(roomCode)
@@ -148,6 +176,14 @@ watch(
           icon="pi pi-plus"
           class="action-button"
           @click="showCreateTask = true"
+        />
+        <Button
+          v-if="isAdmin"
+          label="Delete Room"
+          icon="pi pi-trash"
+          severity="danger"
+          class="action-button"
+          @click="handleDeleteRoom"
         />
         <Button
           v-else
