@@ -11,7 +11,6 @@ export interface RoomData {
   closed_at: string | null
   room_created_at: string
 }
-
 const { user } = useAuth()
 const createdRooms = ref<RoomData[]>([])
 const joinedRooms = ref<RoomData[]>([])

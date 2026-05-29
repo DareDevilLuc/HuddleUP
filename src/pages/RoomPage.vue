@@ -24,7 +24,9 @@ const {
   deleteTask,
   toggleTask,
   room,
-  isAdmin
+  isAdmin,
+  fetchMembers,
+  members,
 } = useTasks()
 
 const toast = useToast()
@@ -35,7 +37,12 @@ const roomCode = route.params.roomCode as string
 
 const createTask = async () => {
   if (!newTaskTitle.value.trim()) {
-    toast.add({ severity: 'warn', summary: 'Validation', detail: 'Task title is required.', life: 3000 })
+    toast.add({
+      severity: 'warn',
+      summary: 'Validation',
+      detail: 'Task title is required.',
+      life: 3000,
+    })
     return
   }
 
@@ -43,12 +50,22 @@ const createTask = async () => {
   const task = await createTaskAction(newTaskTitle.value.trim())
 
   if (!task) {
-    toast.add({ severity: 'error', summary: 'Error', detail: error.value || 'Failed to create task.', life: 3000 })
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.value || 'Failed to create task.',
+      life: 3000,
+    })
     isSubmitting.value = false
     return
   }
 
-  toast.add({ severity: 'success', summary: 'Done', detail: 'Task created and assigned!', life: 3000 })
+  toast.add({
+    severity: 'success',
+    summary: 'Done',
+    detail: 'Task created and assigned!',
+    life: 3000,
+  })
   newTaskTitle.value = ''
   showCreateTask.value = false
   isSubmitting.value = false
@@ -57,7 +74,12 @@ const createTask = async () => {
 const handleDeleteTask = async (task: any) => {
   const success = await deleteTask(task.task_id)
   if (!success) {
-    toast.add({ severity: 'error', summary: 'Error', detail: error.value || 'Failed to delete task.', life: 3000 })
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.value || 'Failed to delete task.',
+      life: 3000,
+    })
     return
   }
 
@@ -67,7 +89,12 @@ const handleDeleteTask = async (task: any) => {
 const loadRoomData = async (roomCodeID: string) => {
   const roomResult = await loadRoom(roomCodeID)
   if (!roomResult) {
-    toast.add({ severity: 'error', summary: 'Not Found', detail: error.value || 'No room found with that code.', life: 3000 })
+    toast.add({
+      severity: 'error',
+      summary: 'Not Found',
+      detail: error.value || 'No room found with that code.',
+      life: 3000,
+    })
   }
   return roomResult
 }
@@ -76,10 +103,20 @@ const handleLeaveRoom = async () => {
   if (!room.value) return
   const success = await leaveRoom(room.value.room_id)
   if (!success) {
-    toast.add({ severity: 'error', summary: 'Error', detail: error.value || 'Failed to leave room.', life: 3000 })
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.value || 'Failed to leave room.',
+      life: 3000,
+    })
     return
   }
-  toast.add({ severity: 'success', summary: 'Left Room', detail: 'You have left the room.', life: 3000 })
+  toast.add({
+    severity: 'success',
+    summary: 'Left Room',
+    detail: 'You have left the room.',
+    life: 3000,
+  })
   router.push('/main')
 }
 
@@ -87,9 +124,12 @@ onMounted(async () => {
   await loadRoomData(roomCode)
 })
 
-watch(() => route.params.roomCode as string, async (newRoomCode: string) => {
-  await loadRoomData(newRoomCode)
-})
+watch(
+  () => route.params.roomCode as string,
+  async (newRoomCode: string) => {
+    await loadRoomData(newRoomCode)
+  },
+)
 </script>
 
 <template>
@@ -101,14 +141,40 @@ watch(() => route.params.roomCode as string, async (newRoomCode: string) => {
         <h1 class="room-page-title">{{ room?.title || 'Room' }}</h1>
       </div>
       <div class="room-header-actions">
-        <Button v-if="isAdmin" label="Create Task" icon="pi pi-plus" class="action-button" @click="showCreateTask = true" />
-        <Button v-else label="Leave Room" icon="pi pi-sign-out" severity="secondary" class="action-button" @click="handleLeaveRoom" />
+        <Button
+          v-if="isAdmin"
+          label="Create Task"
+          icon="pi pi-plus"
+          class="action-button"
+          @click="showCreateTask = true"
+        />
+        <Button
+          v-else
+          label="Leave Room"
+          icon="pi pi-sign-out"
+          severity="secondary"
+          class="action-button"
+          @click="handleLeaveRoom"
+        />
       </div>
     </div>
 
     <div class="room-meta">
       <span class="room-pill">{{ isAdmin ? 'Owner' : 'Member' }}</span>
-      <span class="room-label">Code: <strong>{{ route.params.roomCode }}</strong></span>
+      <span class="room-label"
+        >Code: <strong>{{ route.params.roomCode }}</strong></span
+      >
+      <div class="members-section">
+        <span class="room-label">
+          <i class="pi pi-users" /> {{ members.length }}
+          {{ members.length === 1 ? 'Member' : 'Members' }}
+        </span>
+        <div class="members-list">
+          <span v-for="member in members" :key="member.user_id" class="member-pill">
+            {{ member.username }}
+          </span>
+        </div>
+      </div>
     </div>
 
     <Dialog v-model:visible="showCreateTask" header="Create Task" modal class="task-dialog">
@@ -135,9 +201,14 @@ watch(() => route.params.roomCode as string, async (newRoomCode: string) => {
           :key="task.task_id"
           class="task-card"
           :class="{ completed: task.status_task === 'inactive' }"
-          @click="isAdmin && toggleTask(task)"
+          @click="toggleTask(task)"
         >
-          <Checkbox :modelValue="task.status_task === 'inactive'" :binary="true" :disabled="!isAdmin" @click.stop />
+          <Checkbox
+            :modelValue="task.status_task === 'inactive'"
+            :binary="true"
+            :disabled="!isAdmin"
+            @click.stop
+          />
           <span class="task-title">{{ task.title }}</span>
           <Button
             v-if="isAdmin"
@@ -156,33 +227,54 @@ watch(() => route.params.roomCode as string, async (newRoomCode: string) => {
 
 <style scoped>
 .task-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
 }
 
 .task-card {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 1rem;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 
 .task-card:hover {
-    background: #f5f5f5;
+  background: #f5f5f5;
 }
 
 .task-card.completed .task-title {
-    text-decoration: line-through;
-    color: #aaa;
+  text-decoration: line-through;
+  color: #aaa;
 }
 
 .task-title {
-    font-size: 1rem;
+  font-size: 1rem;
+}
+
+.members-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.members-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.member-pill {
+  background: #f0f0f0;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+  color: #444;
 }
 </style>
