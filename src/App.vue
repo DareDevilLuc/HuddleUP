@@ -18,7 +18,7 @@ initAuth()
 :root {
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color-scheme: light;
-  --surface-bg: #f4fbff;
+  --surface-bg: white;
   --surface-panel: #ffffff;
   --surface-border: rgba(15, 23, 42, 0.1);
   --surface-muted: #64748b;

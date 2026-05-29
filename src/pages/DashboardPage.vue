@@ -201,7 +201,7 @@ onMounted(async () => {
       <div v-else-if="allRooms.length === 0" class="empty-hint">
         Join or create a room and huddle up with your team.
       </div>
-      <div v-else class="room-progress-card">
+      <div v-else class="room-progress-card" @click="goToRoom(allRooms[roomProgressIndex].room_code)">
         <div class="rp-top">
           <span class="rp-code">{{ allRooms[roomProgressIndex].room_code }}</span>
           <span class="rp-badge" :class="createdRooms.find(r => r.room_code === allRooms[roomProgressIndex].room_code) ? 'owner' : 'member'">
@@ -532,5 +532,26 @@ onMounted(async () => {
 
 .w-full {
   width: 100%;
+}
+
+.room-progress-card {
+  background: white;
+  border: 1px solid #dde8cc;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  
+  /* 👇 New additions for clicking */
+  cursor: pointer; 
+  transition: all 0.2s ease;
+}
+
+/* 👇 Add this new hover state right below it! */
+.room-progress-card:hover {
+  border-color: #8CAE3A; /* Highlights the border with your theme green */
+  box-shadow: 0 4px 12px rgba(140, 174, 58, 0.15); /* Adds a soft green glow */
+  transform: translateY(-2px); /* Slightly lifts the card up */
 }
 </style>

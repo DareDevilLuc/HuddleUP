@@ -30,27 +30,27 @@ const username = computed(() => {
 
 <template>
   <div class="main-layout">
-    <!-- Sidebar -->
     <aside class="sidebar">
 
-      <!-- Logo -->
       <div class="sidebar-logo">
-        <div class="sidebar-logo">
         <img src="/your-photo.png" alt="HuddleUp Logo" class="logo-icon" />
         <span class="logo-text">HuddleUp</span>
       </div>
-      </div>
 
-      <!-- User Card -->
-      <div class="user-card">
-        <Avatar icon="pi pi-user" size="large" shape="circle" class="user-avatar" />
-        <div class="user-info">
-          <span class="user-name">{{ username }}</span>
-          <span class="user-email">{{ user?.email || 'Loading...' }}</span>
+      <div class="user-card-container">
+        <div class="user-card">
+          <Avatar icon="pi pi-user" size="large" shape="circle" class="user-avatar" />
+          <div class="user-info">
+            <span class="user-name">{{ username }}</span>
+            <span class="user-email">{{ user?.email || 'Loading...' }}</span>
+          </div>
         </div>
+        <button class="btn-logout" @click="handleSignOut">
+          <i class="pi pi-sign-out" />
+          <span>Log Out</span>
+        </button>
       </div>
 
-      <!-- Navigation -->
       <nav class="sidebar-nav">
         <p class="nav-section-label">NAVIGATION</p>
         <div
@@ -63,7 +63,6 @@ const username = computed(() => {
         </div>
       </nav>
 
-      <!-- Joined Rooms -->
       <nav class="sidebar-nav">
         <p class="nav-section-label">JOINED ROOMS</p>
         <p v-if="!joinedRooms.length" class="nav-empty">Join a room and start huddling!</p>
@@ -79,7 +78,6 @@ const username = computed(() => {
         </div>
       </nav>
 
-      <!-- Created Rooms -->
       <nav class="sidebar-nav">
         <p class="nav-section-label">CREATED ROOMS</p>
         <p v-if="!createdRooms.length" class="nav-empty">Create a room and start the huddle!</p>
@@ -95,10 +93,8 @@ const username = computed(() => {
         </div>
       </nav>
 
-      <!-- Spacer -->
       <div class="sidebar-spacer" />
 
-      <!-- Bottom Buttons -->
       <div class="sidebar-bottom">
         <Button
           label="Create Room"
@@ -113,7 +109,6 @@ const username = computed(() => {
       </div>
     </aside>
 
-    <!-- Main Content -->
     <div class="content-container">
       <RouterView />
     </div>
@@ -305,5 +300,47 @@ const username = computed(() => {
   flex-direction: column;
   background: #f5f7fa;
   overflow-y: auto;
+}
+.user-card-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem; /* Slightly more breathing room */
+  margin-bottom: 1.5rem; /* Pushes the navigation down a bit */
+}
+
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.btn-logout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  
+  /* Overriding default browser button styles */
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  color: #ffffff;
+  padding: 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit; /* Stops the button from using a weird default font */
+  cursor: pointer;
+  width: 100%;
+  
+  transition: all 0.2s ease;
+}
+
+.btn-logout:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.35);
 }
 </style>

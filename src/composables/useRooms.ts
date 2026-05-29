@@ -170,6 +170,22 @@ export function useRooms() {
       return null
     }
 
+    const { data: existingTasks } = await supabase
+      .from('Task')
+      .select('task_id')
+      .eq('task_room_id', room.room_id)
+
+    if (existingTasks && existingTasks.length > 0) {
+      const assignments = existingTasks.map((task: any) => ({
+        task_id: task.task_id,
+        user_id: user.value!.id,
+        marked_done: false,
+        assigned_at: new Date().toISOString(),
+      }))
+
+      await supabase.from('Assigned_To').insert(assignments)
+    }
+
     await fetchJoinedRooms()
     isLoading.value = false
     return { room, alreadyJoined: false }
@@ -178,6 +194,21 @@ export function useRooms() {
   const leaveRoom = async (roomId: string): Promise<boolean> => {
     if (!user.value) return false
     error.value = null
+
+    const { data: roomTasks } = await supabase
+      .from('Task')
+      .select('task_id')
+      .eq('task_room_id', roomId)
+
+    if (roomTasks && roomTasks.length > 0) {
+      const taskIds = roomTasks.map((task: any) => task.task_id)
+
+      await supabase
+        .from('Assigned_To')
+        .delete()
+        .eq('user_id', user.value.id)
+        .in('task_id', taskIds)
+    }
 
     const { error: leaveError } = await supabase
       .from('Joins')
@@ -195,6 +226,63 @@ export function useRooms() {
     return true
   }
 
+  const deleteRoom = async (roomId: string): Promise<boolean> => {
+    if (!user.value) return false
+    error.value = null
+
+    const { data: roomTasks, error: tasksError } = await supabase
+      .from('Task')
+      .select('task_id')
+      .eq('task_room_id', roomId)
+
+    if (tasksError) {
+      error.value = tasksError.message
+      return false
+    }
+
+    if (roomTasks && roomTasks.length > 0) {
+      const taskIds = roomTasks.map((task: any) => task.task_id)
+
+      const { error: assignedError } = await supabase
+        .from('Assigned_To')
+        .delete()
+        .in('task_id', taskIds)
+
+      if (assignedError) {
+        error.value = assignedError.message
+        return false
+      }
+
+      const { error: deleteTasksError } = await supabase
+        .from('Task')
+        .delete()
+        .eq('task_room_id', roomId)
+
+      if (deleteTasksError) {
+        error.value = deleteTasksError.message
+        return false
+      }
+    }
+
+    const { error: joinError } = await supabase.from('Joins').delete().eq('room_id', roomId)
+
+    if (joinError) {
+      error.value = joinError.message
+      return false
+    }
+
+    const { error: roomError } = await supabase.from('Room').delete().eq('room_id', roomId)
+
+    if (roomError) {
+      error.value = roomError.message
+      return false
+    }
+
+    await fetchCreatedRooms()
+    await fetchJoinedRooms()
+    return true
+  }
+
   const subscribeToRooms = () => {
     supabase
       .channel('room-changes')
@@ -202,6 +290,7 @@ export function useRooms() {
         fetchCreatedRooms()
         fetchJoinedRooms()
       })
+      .subscribe()
   }
 
   return {
@@ -214,6 +303,7 @@ export function useRooms() {
     createRoom,
     joinRoom,
     leaveRoom,
+    deleteRoom,
     subscribeToRooms,
   }
 }
