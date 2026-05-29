@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useRooms } from '@/composables/useRooms'
+import { useAuth } from '@/composables/useAuth'
 
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
@@ -14,7 +15,28 @@ const route = useRoute()
 const toast = useToast()
 const { createdRooms, joinedRooms, fetchCreatedRooms, fetchJoinedRooms, createRoom, joinRoom, isLoading, error } = useRooms()
 
-// --- Create Room Dialog ---
+const { user } = useAuth()
+
+const username = computed(() => {
+  if (!user.value) return 'User'
+  return user.value?.user_metadata?.username || user.value?.email?.split('@')[0] || 'User'
+})
+
+const totalPeopleHuddled = computed(() => {
+  const uniqueTeammates = new Set()
+
+  allRooms.value.forEach(room => {
+    if (room.members && Array.isArray(room.members)) {
+      room.members.forEach(member => {
+        uniqueTeammates.add(member.user_id || member.id)
+      })
+    }
+  })
+
+  const count = uniqueTeammates.size > 0 ? uniqueTeammates.size - 1 : 0
+  return count > 0 ? count : 0
+})
+
 const showCreateDialog = ref(false)
 const newRoomTitle = ref('')
 
@@ -31,7 +53,6 @@ const handleCreateRoom = async () => {
   }
 }
 
-// --- Join Room Dialog ---
 const showJoinDialog = ref(false)
 const joinCode = ref('')
 const isJoining = ref(false)
@@ -72,19 +93,32 @@ const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+const totalTasks = computed(() => 0)
+const completedTasks = computed(() => 0)
+const completionPercent = computed(() =>
+  totalTasks.value > 0 ? Math.round((completedTasks.value / totalTasks.value) * 100) : 0
+)
+const totalActiveRooms = computed(() => joinedRooms.value.length + createdRooms.value.length)
+
+const roomProgressIndex = ref(0)
+const allRooms = computed(() => [...joinedRooms.value, ...createdRooms.value])
+
+const prevRoom = () => {
+  if (roomProgressIndex.value > 0) roomProgressIndex.value--
+}
+const nextRoom = () => {
+  if (roomProgressIndex.value < allRooms.value.length - 1) roomProgressIndex.value++
+}
+
 watch(() => route.query.action, (action) => {
   if (action === 'join') showJoinDialog.value = true
   if (action === 'create') showCreateDialog.value = true
-  
-  // Clear the query so it can trigger again next click
   if (action) router.replace({ query: {} })
 }, { immediate: true })
 
 onMounted(async () => {
   await fetchCreatedRooms()
   await fetchJoinedRooms()
-
-  // Auto-open dialog if redirected from sidebar buttons
   if (route.query.action === 'join') showJoinDialog.value = true
   if (route.query.action === 'create') showCreateDialog.value = true
 })
@@ -92,71 +126,98 @@ onMounted(async () => {
 
 <template>
   <Toast />
-<!--  -->
-  <div class="dashboard">
-    <!-- Loading -->
-    <div v-if="isLoading" class="loading-state">
-      <i class="pi pi-spin pi-spinner" style="font-size: 2rem;" />
-      <p>Loading your rooms...</p>
+
+  <div class="dashboard-page">
+
+    <div class="dashboard-header">
+      
+      <!-- Wrap the titles in a new div so they stack properly -->
+      <div class="header-titles">
+        <h1 class="dashboard-title">Dashboard</h1>
+        <p class="dashboard-subtitle">Welcome back! Here's a quick overview of you and your team's progress.</p>
+      </div>
+
+      <div class="header-illustration">
+        <img src="/placeholder-team.png" alt="Team illustration" class="header-img" />
+        <svg v-if="false" class="header-img" viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+          <rect width="160" height="100" rx="8" fill="#e8f5e9" />
+          <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" fill="#81c784" font-size="11" font-family="sans-serif">Team Illustration</text>
+        </svg>
+      </div>
     </div>
 
-    <template v-else>
-      <!-- Joined Rooms -->
-      <section class="room-section">
-        <h2 class="section-label">
-          <i class="pi pi-users" />
-          Rooms I Joined
-        </h2>
-        <div v-if="joinedRooms.length" class="room-grid">
-          <div
-            v-for="room in joinedRooms"
-            :key="room.room_id"
-            class="room-card"
-            @click="goToRoom(room.room_code)"
-          >
-            <div class="card-top">
-              <span class="room-code">{{ room.room_code }}</span>
-              <span class="room-badge member">member</span>
-            </div>
-            <h3 class="room-title">{{ room.title }}</h3>
-            <p class="room-date">Created {{ formatDate(room.room_created_at) }}</p>
-          </div>
+    <div class="stats-row">
+      <div class="stat-card stat-card--welcome">
+        <div class="stat-card__illus">
+          <img src="/placeholder-huddle.png" alt="Huddle illustration" class="stat-illus-img" />
         </div>
-        <div v-else class="empty-state">
-          <i class="pi pi-inbox" />
-          <p>You haven't joined any rooms yet. Use a room code to join one.</p>
+        <div class="stat-card__text">
+          <div class="stat-card__label">Huddle Up,</div>
+          <div class="stat-card__label">{{ username }}!</div>
         </div>
-      </section>
+      </div>
 
-      <!-- Created Rooms -->
-      <section class="room-section">
-        <h2 class="section-label">
-          <i class="pi pi-folder-open" />
-          Rooms I Created
-        </h2>
-        <div v-if="createdRooms.length" class="room-grid">
-          <div
-            v-for="room in createdRooms"
-            :key="room.room_id"
-            class="room-card owner"
-            @click="goToRoom(room.room_code)"
-          >
-            <div class="card-top">
-              <span class="room-code">{{ room.room_code }}</span>
-              <span class="room-badge owner-badge">owner</span>
-            </div>
-            <h3 class="room-title">{{ room.title }}</h3>
-            <p class="room-date">Created {{ formatDate(room.room_created_at) }}</p>
-          </div>
+      <div class="stat-card stat-card--tasks">
+        <div class="stat-card__value">{{ totalTasks }}/{{ totalTasks }}</div>
+        <div class="stat-card__sub">
+          <div>{{ totalTasks }} Total Tasks across all rooms</div>
+          <div>{{ completedTasks }} Completed ({{ completionPercent }}%)</div>
         </div>
-        <div v-else class="empty-state">
-          <i class="pi pi-plus-circle" />
-          <p>No rooms created yet. Start one for your group!</p>
-        </div>
-      </section>
-    </template>
+      </div>
 
-    <!-- Create Room Dialog -->
+      <div class="stat-card stat-card--rooms">
+        <div class="stat-card__value stat-card__value--large">{{ totalActiveRooms }}</div>
+        <div class="stat-card__sub">
+          <div><strong>Total Active Rooms</strong></div>
+          <div>{{ joinedRooms.length }} Joined / {{ createdRooms.length }} Created</div>
+        </div>
+      </div>
+
+      <div class="stat-card stat-card--people">
+        <div class="stat-card__value stat-card__value--large">{{ totalPeopleHuddled }}</div>
+        <div class="stat-card__sub">
+          <div><strong>People Huddled</strong></div>
+          <div>Teammates across your rooms</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-block">
+      <div class="section-header">
+        <span class="section-title">Room Progress</span>
+        <div class="carousel-nav">
+          <button class="nav-btn" @click="prevRoom" :disabled="roomProgressIndex === 0 || allRooms.length === 0">
+            <i class="pi pi-chevron-left" />
+          </button>
+          <button class="nav-btn" @click="nextRoom" :disabled="roomProgressIndex >= allRooms.length - 1 || allRooms.length === 0">
+            <i class="pi pi-chevron-right" />
+          </button>
+        </div>
+      </div>
+
+      <div v-if="isLoading" class="empty-hint">
+        <i class="pi pi-spin pi-spinner" /> Loading rooms...
+      </div>
+      <div v-else-if="allRooms.length === 0" class="empty-hint">
+        Join or create a room and huddle up with your team.
+      </div>
+      <div v-else class="room-progress-card">
+        <div class="rp-top">
+          <span class="rp-code">{{ allRooms[roomProgressIndex].room_code }}</span>
+          <span class="rp-badge" :class="createdRooms.find(r => r.room_code === allRooms[roomProgressIndex].room_code) ? 'owner' : 'member'">
+            {{ createdRooms.find(r => r.room_code === allRooms[roomProgressIndex].room_code) ? 'owner' : 'member' }}
+          </span>
+        </div>
+        <div class="rp-title">{{ allRooms[roomProgressIndex].title }}</div>
+        <div class="rp-date">Created {{ formatDate(allRooms[roomProgressIndex].room_created_at) }}</div>
+      </div>
+    </div>
+
+    <div class="section-block">
+      <div class="section-title">Tasks</div>
+      <div class="empty-hint">You don't have any tasks yet.</div>
+    </div>
+
     <Dialog v-model:visible="showCreateDialog" header="Create a New Room" :style="{ width: '400px' }" modal>
       <div class="dialog-body">
         <label class="dialog-label">Room Name</label>
@@ -175,7 +236,6 @@ onMounted(async () => {
       </template>
     </Dialog>
 
-    <!-- Join Room Dialog -->
     <Dialog v-model:visible="showJoinDialog" header="Join a Room" :style="{ width: '400px' }" modal>
       <div class="dialog-body">
         <label class="dialog-label">Room Code</label>
@@ -194,228 +254,279 @@ onMounted(async () => {
         <Button label="Join Room" icon="pi pi-sign-in" :loading="isJoining" :disabled="!joinCode.trim()" @click="handleJoinRoom" />
       </template>
     </Dialog>
+
   </div>
 </template>
 
 <style scoped>
-.dashboard {
-  max-width: 1080px;
-  width: 100%;
-  margin: 0 auto;
+.dashboard-page {
+  padding: 3rem 3.5rem;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 2.75rem;
+  background: #f5f7f2;
+  min-height: 100%;
+  font-family: 'Segoe UI', sans-serif;
 }
 
-.loading-state,
-.empty-state {
+.dashboard-header {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.dashboard-title {
+  font-size: 4rem;
+  font-weight: 800;
+  color: #8CAE3A;
+  margin: 0;
+  line-height: 1;
+}
+
+.header-illustration {
+  width: 220px;  
+  height: 180px; 
+  display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  top: 27px;   /* Pushes it down from the top */
+  right: 20px; /* Pushes it away from the right edge (moving it left) */
+}
+
+.header-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.stats-row {
+  display: flex;
   gap: 0.75rem;
-  padding: 2rem;
-  border: 1px dashed rgba(15, 23, 42, 0.18);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.82);
-  color: var(--text-secondary);
+  margin-top: -2rem; 
 }
 
-.loading-state i,
-.empty-state i {
-  font-size: 2rem;
-  color: var(--accent);
-}
-
-.room-section {
-  margin-bottom: 2.5rem;
-}
-
-.section-label {
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin: 0 0 1rem;
+.stat-card {
+  border-radius: 16px;
+  padding: 1.75rem 1.5rem;
+  min-height: 130px;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-}
-
-.room-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 1.25rem;
+  flex: 1;
+  min-width: 0;
 }
 
-.room-card {
-  background: var(--surface-panel);
-  border: 1px solid var(--surface-border);
-  border-radius: 20px;
-  padding: 1.4rem;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+.stat-card--welcome {
+  background: #8CAE3A;
+  color: white;
+  flex: 1.1;
+}
+
+.stat-card--tasks {
+  background: #8CAE3A;
+  color: white;
+  flex: 1.2;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.stat-card--rooms {
+  background: #8CAE3A;
+  color: white;
+  flex: 0.9;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.stat-card--people {
+  background: #8CAE3A;
+  color: white;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.stat-card__illus {
+  width: 80px;
+  height: 72px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.stat-illus-img {
+  position: absolute;
+  width: 120px;
+  height: 170px;
+  object-fit: contain;
+  bottom: -31px;
+  left: -20px;
+  max-width: none; 
+  z-index: 10;
+}
+
+.stat-illus-fallback {
+  display: block;
+}
+
+.stat-card__text {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
 }
 
-.room-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.1);
-  border-color: rgba(15, 118, 110, 0.3);
+.stat-card__label {
+  font-size: 1.75rem;
+  font-weight: 900;
+  line-height: 1.15;
+  color: white;
 }
 
-.card-top {
+.stat-card__value {
+  font-size: 2.3rem;
+  font-weight: 800;
+  color: white;
+  line-height: 1;
+}
+
+.stat-card__value--large {
+  font-size: 2.3rem;
+}
+
+.stat-card__sub {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.88);
+  line-height: 1.5;
+}
+
+.section-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.35rem;
 }
 
-.room-code {
+.section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #2d2d2d;
+}
+
+.empty-hint {
+  font-size: 0.88rem;
+  color: #9aaa88;
+  padding: 0.25rem 0;
+}
+
+.carousel-nav {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.nav-btn {
+  background: none;
+  border: 1px solid #ccd9b8;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #5a8a2e;
+  font-size: 0.75rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: #e8f5d6;
+  border-color: #7ec035;
+}
+
+.nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.room-progress-card {
+  background: white;
+  border: 1px solid #dde8cc;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.rp-top {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.rp-code {
   font-family: monospace;
-  font-size: 0.8rem;
-  background: rgba(15, 118, 110, 0.06);
-  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
+  background: #eef7e4;
+  color: #5a8a2e;
+  padding: 0.2rem 0.6rem;
   border-radius: 999px;
-  color: var(--accent);
   letter-spacing: 0.08em;
 }
 
-.room-badge,
-.owner-badge {
-  padding: 0.35rem 0.8rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
+.rp-badge {
+  font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  letter-spacing: 0.07em;
 }
 
-.room-badge.member {
-  background: rgba(59, 130, 246, 0.08);
-  color: #2563eb;
+.rp-badge.member {
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
-.owner-badge {
-  background: rgba(16, 185, 129, 0.12);
-  color: #047857;
+.rp-badge.owner {
+  background: #d1fae5;
+  color: #065f46;
 }
 
-.room-title {
-  margin: 0;
-  font-size: 1.15rem;
-  color: var(--text-primary);
-}
-
-.room-date {
-  margin: 0;
-  font-size: 0.95rem;
-  color: var(--text-secondary);
-}
-
-.dialog-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.dialog-label {
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.dialog-hint {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-}
-
-.w-full {
-  width: 100%;
-}
-
-.room-badge.member {
-  background: var(--blue-100);
-  color: var(--blue-700);
-}
-
-.room-badge.owner-badge {
-  background: var(--green-100);
-  color: var(--green-700);
-}
-
-.room-title {
+.rp-title {
   font-size: 1rem;
   font-weight: 600;
-  margin: 0;
-  color: var(--text-color);
+  color: #2d2d2d;
 }
 
-.room-date {
+.rp-date {
   font-size: 0.78rem;
-  color: var(--text-color-secondary);
-  margin: 0;
-}
-
-.card-footer {
-  margin-top: auto;
-  padding-top: 0.75rem;
-}
-
-.enter-hint {
-  font-size: 0.8rem;
-  color: var(--primary-color);
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 2.5rem;
-  border: 1px dashed var(--surface-border);
-  border-radius: 12px;
-  color: var(--text-color-secondary);
-  text-align: center;
-}
-
-.empty-state i {
-  font-size: 2rem;
-  opacity: 0.4;
-}
-
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-  padding: 4rem;
-  color: var(--text-color-secondary);
+  color: #8a9a78;
 }
 
 .dialog-body {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.6rem;
   padding: 0.5rem 0;
 }
 
 .dialog-label {
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text-color);
+  color: #2d2d2d;
 }
 
 .dialog-hint {
   font-size: 0.8rem;
-  color: var(--text-color-secondary);
+  color: #9aaa88;
   margin: 0;
 }
 
