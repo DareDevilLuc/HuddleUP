@@ -13,7 +13,7 @@ import Button from 'primevue/button'; // Added for a logout button
 const router = useRouter();
 const route = useRoute();
 const { user, signOut } = useAuth();
-const { createdRooms, joinedRooms, fetchCreatedRooms, fetchJoinedRooms } = useRooms();
+const { createdRooms, joinedRooms, fetchCreatedRooms, fetchJoinedRooms, subscribeToRooms } = useRooms();
 
 const refreshRooms = async () => {
   await fetchCreatedRooms();
@@ -21,16 +21,10 @@ const refreshRooms = async () => {
 };
 
 onMounted(async () => {
+  subscribeToRooms()
   await refreshRooms();
 });
 
-// Watch for route changes to refresh room data when returning from room operations
-watch(() => route.path, async (newPath) => {
-  // Refresh rooms when navigating to dashboard or main layout areas
-  if (newPath.includes('/main/dashboard') || newPath === '/main') {
-    await refreshRooms();
-  }
-});
 
 // Use computed so the menu reacts automatically when room data arrives from Supabase
 const items = computed(() => [
