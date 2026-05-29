@@ -37,7 +37,7 @@ const handleSignin = async () => {
   <div class="page-container">
     <div class="brand-header">
       <img src="/HuddleUP Logo.svg" alt="HuddleUp Logo" class="brand-logo" />
-      <h1 class="brand-name">HuddleUp</h1>
+      <h1 class="brand-name">HuddleUP</h1>
     </div>
 
     <div class="content-wrapper">
@@ -83,6 +83,8 @@ const handleSignin = async () => {
 </template>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
+
 /* Page Layout & Background */
 .page-container {
   position: relative;
@@ -91,8 +93,8 @@ const handleSignin = async () => {
   overflow: hidden;
   font-family: Arial, sans-serif;
   background-image: url('/background.png');
-  background-size: cover;
-  background-position: center right;
+  background-size: auto 110vh;
+  background-position: 115% top;
   background-repeat: no-repeat;
 }
 
@@ -108,14 +110,15 @@ const handleSignin = async () => {
 }
 
 .brand-logo {
-  height: 45px;
+  height: 100px;
   width: auto;
 }
 
 .brand-name {
-  font-size: 2rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 3.5rem;
   font-weight: 800;
-  color: #000;
+  color: #191919;
   margin: 0;
 }
 
@@ -129,20 +132,20 @@ const handleSignin = async () => {
 }
 
 .illustration-section {
-  flex: 1;
+  flex: 1.2;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding-left: 2rem;
+  padding-left: 8rem;
 }
 
 .illustration {
-  max-width: 80%;
+  max-width: 100%;
   height: auto;
 }
 
 .form-section {
-  flex: 1;
+  flex: 0.9;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -152,12 +155,12 @@ const handleSignin = async () => {
 .glass-card {
   width: 100%;
   max-width: 28rem;
-  background: rgba(255, 255, 255, 0.15) !important;
+  background: rgba(255, 255, 255, 0.02) !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 1.5rem !important;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  border-radius: 5rem !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
   padding: 1rem;
   color: white;
 }
