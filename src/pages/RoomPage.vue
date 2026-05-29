@@ -93,43 +93,65 @@ watch(() => route.params.roomCode as string, async (newRoomCode: string) => {
 </script>
 
 <template>
-    <Toast />
-    <div class="room">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <div style="font-size: xx-large; font-weight: bold;">
-                {{ room?.title }}
-            </div>
-            <Button v-if="!isAdmin" label="Leave Room" icon="pi pi-sign-out" severity="secondary" @click="handleLeaveRoom" />
-        </div>
-        <div v-if="isAdmin">
-            <Button label="Create Task" icon="pi pi-plus" @click="showCreateTask = true" />
-        </div>
-        <Dialog v-model:visible="showCreateTask" header="Create Task" modal style="width: 400px">
-            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                <InputText v-model="newTaskTitle" placeholder="Task title" style="width: 100%" />
-                <Button label="Submit" :loading="isSubmitting" @click="createTask" />
-            </div>
-        </Dialog>
+  <Toast />
 
-        <div v-if="isLoading" class="loading-state">
-            <i class="pi pi-spin pi-spinner" style="font-size: 2rem;" />
-            <p>Loading your tasks...</p>
-        </div>
-        <template v-else>
-            <div v-if="assignedTasks.length === 0">No tasks yet.</div>
-            <div v-else class="task-list">
-                <div v-for="task in assignedTasks" :key="task.task_id" class="task-card"
-                    :class="{ completed: task.status_task === 'inactive' }" @click="isAdmin && toggleTask(task)"
-                    :style="isAdmin ? 'cursor: pointer' : 'cursor: default'">
-                    <Checkbox :modelValue="task.status_task === 'inactive'" :binary="true" :disabled="!isAdmin"
-                        @click.stop />
-                    <span class="task-title">{{ task.title }}</span>
-                    <Button v-if="isAdmin" icon="pi pi-trash" severity="danger" text rounded
-                        @click.stop="handleDeleteTask(task)" />
-                </div>
-            </div>
-        </template>
+  <div class="room-page">
+    <div class="room-header">
+      <div>
+        <h1 class="room-page-title">{{ room?.title || 'Room' }}</h1>
+      </div>
+      <div class="room-header-actions">
+        <Button v-if="isAdmin" label="Create Task" icon="pi pi-plus" class="action-button" @click="showCreateTask = true" />
+        <Button v-else label="Leave Room" icon="pi pi-sign-out" severity="secondary" class="action-button" @click="handleLeaveRoom" />
+      </div>
     </div>
+
+    <div class="room-meta">
+      <span class="room-pill">{{ isAdmin ? 'Owner' : 'Member' }}</span>
+      <span class="room-label">Code: <strong>{{ route.params.roomCode }}</strong></span>
+    </div>
+
+    <Dialog v-model:visible="showCreateTask" header="Create Task" modal class="task-dialog">
+      <div class="dialog-body">
+        <InputText v-model="newTaskTitle" placeholder="Task title" class="dialog-input" />
+        <Button label="Submit" :loading="isSubmitting" class="dialog-submit" @click="createTask" />
+      </div>
+    </Dialog>
+
+    <div v-if="isLoading" class="loading-state">
+      <i class="pi pi-spin pi-spinner" />
+      <p>Loading your tasks...</p>
+    </div>
+
+    <template v-else>
+      <div v-if="assignedTasks.length === 0" class="empty-tasks">
+        <i class="pi pi-inbox" />
+        <p>No tasks yet. Create one to keep your room moving.</p>
+      </div>
+
+      <div v-else class="task-list">
+        <div
+          v-for="task in assignedTasks"
+          :key="task.task_id"
+          class="task-card"
+          :class="{ completed: task.status_task === 'inactive' }"
+          @click="isAdmin && toggleTask(task)"
+        >
+          <Checkbox :modelValue="task.status_task === 'inactive'" :binary="true" :disabled="!isAdmin" @click.stop />
+          <span class="task-title">{{ task.title }}</span>
+          <Button
+            v-if="isAdmin"
+            icon="pi pi-trash"
+            severity="danger"
+            text
+            rounded
+            class="delete-button"
+            @click.stop="handleDeleteTask(task)"
+          />
+        </div>
+      </div>
+    </template>
+  </div>
 </template>
 
 <style scoped>

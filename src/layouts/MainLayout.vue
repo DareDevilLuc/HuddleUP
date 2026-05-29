@@ -115,22 +115,57 @@ const handleSignOut = async () => {
 <style scoped>
 .main-layout {
   display: flex;
-  flex-direction: row;
   min-height: 100vh;
-  background-color: var(--surface-ground);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.sidebar {
+  width: 360px;
+  min-height: 100vh;
+  background: rgba(255, 255, 255, 0.95);
+  border-right: 1px solid var(--surface-border);
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  gap: 1.2rem;
+  box-shadow: 4px 0 40px rgba(15, 23, 42, 0.06);
 }
 
 .nav-menu {
-  width: 300px;
-  border-radius: 0;
-  height: 100vh;
-  border-right: 1px solid var(--surface-border);
+  flex: 1;
+  border-radius: 24px;
+  background: transparent;
+  border: none;
+  overflow: hidden;
+}
+
+.nav-menu :deep(.p-submenu-header) {
+  padding: 1rem 1.15rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.nav-menu :deep(.p-menuitem-link) {
+  border-radius: 14px;
+  margin: 0.35rem 0;
+}
+
+.sidebar-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: auto;
+}
+
+.sidebar-bottom :deep(.p-button) {
+  width: 100%;
 }
 
 .content-container {
+  flex: 1;
+  padding: 2.5rem;
   display: flex;
   flex-direction: column;
-  flex-grow: 1;
-  padding: 2rem;
+  gap: 1.5rem;
 }
 </style>

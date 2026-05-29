@@ -1,70 +1,83 @@
 <script setup lang="ts">
-    import {ref} from 'vue'
-    import Card from 'primevue/card'
-    import FloatLabel from 'primevue/floatlabel';
-    import InputText from 'primevue/inputtext'
-    import Button from 'primevue/button'
+import { ref } from 'vue'
+import Card from 'primevue/card'
+import FloatLabel from 'primevue/floatlabel'
+import InputText from 'primevue/inputtext'
+import Button from 'primevue/button'
+import { useAuth } from '@/composables/useAuth'
+import { useRouter } from 'vue-router'
 
-    import { useAuth } from '@/composables/useAuth';
+const router = useRouter()
+const { signUp } = useAuth()
 
-    const { signUp } = useAuth()
+const email = ref('')
+const pass = ref('')
+const verify = ref('')
+const error = ref('')
+const success = ref('')
 
-    const email = ref('')
-    const pass = ref('')
-    const verify = ref('')
-    const error = ref('')
-    const signed = ref('')
+const handleSignup = async () => {
+  error.value = ''
+  success.value = ''
 
-    const handleSignup = async() => {
+  if (!email.value.trim() || !pass.value.trim() || !verify.value.trim()) {
+    error.value = 'Please complete all fields.'
+    return
+  }
 
-      try{
-         await signUp(email.value, pass.value)
-        signed.value = "Signed Up successful, you may now login"
-      }
-      catch(e : any) {
-        error.value = e.message 
-      }
-    }
+  if (pass.value !== verify.value) {
+    error.value = 'Passwords do not match.'
+    return
+  }
 
+  try {
+    await signUp(email.value, pass.value)
+    success.value = 'Signup successful! Redirecting to login...'
+    router.replace('/login')
+  } catch (e: any) {
+    error.value = e.message || 'Unable to sign up. Please try again.'
+  }
+}
 </script>
 
 
 <template>
-  <Card class="signup-card">
+  <div class="auth-page">
+    <Card class="auth-card">
+      <template #title>
+        <div class="card-title">Sign Up</div>
+      </template>
 
-    <template #title> Sign Up</template>
+      <template #content>
+        <form class="form-field" @submit.prevent="handleSignup">
+          <FloatLabel class="input-field" variant="in">
+            <InputText id="email" v-model="email" type="email" autocomplete="email" />
+            <label for="email">Email</label>
+          </FloatLabel>
 
-    <template #content>
+          <FloatLabel class="input-field" variant="in">
+            <InputText id="password" v-model="pass" type="password" autocomplete="new-password" />
+            <label for="password">Password</label>
+          </FloatLabel>
 
+          <FloatLabel class="input-field" variant="in">
+            <InputText id="verify" v-model="verify" type="password" autocomplete="new-password" />
+            <label for="verify">Verify Password</label>
+          </FloatLabel>
 
-      <div class="form-field">
-        <FloatLabel class="input-field" variant="in"> 
-          <InputText id="email" v-model="email"/> 
-          <label for="email">Email</label> 
-        </FloatLabel>   
+          <Button type="submit" class="submit-button" label="Sign Up" />
 
-        <FloatLabel class="input-field" variant="in"> 
-          <InputText id="password" v-model="pass" /> 
-          <label for="password">Password</label> 
-        </FloatLabel>   
+          <p class="error-mess" v-if="error">{{ error }}</p>
+          <p class="success-mess" v-if="success">{{ success }}</p>
 
-        <FloatLabel class="input-field" variant="in"> 
-          <InputText id="verify" v-model="verify" /> 
-          <label for="verify">Verify Password</label> 
-        </FloatLabel>   
-
-        <Button @click="handleSignup" class="signup-bt" label="Sign Up"/>
-
-        <p class="error-mess" v-if="error"> {{ error }}</p>
-        <p class="signed-mess" v-if="signed"> {{signed}}</p>
-
-        <span style="color: black;">Already have an account? <RouterLink to="/login" class="link">Log in</RouterLink></span>
-      </div>
-
-
-    </template>
-
-  </Card>
+          <p class="helper-text">
+            Already have an account?
+            <RouterLink to="/login" class="link">Log in</RouterLink>
+          </p>
+        </form>
+      </template>
+    </Card>
+  </div>
 </template>
 
 <style scoped>
@@ -105,6 +118,10 @@ gap: 2rem
   width: 100%;
 }
 
+.card-title {
+  color: black
+}
+
 .signup-card :deep(.p-card-title){
   color: black;
   text-align: center;
@@ -124,6 +141,9 @@ gap: 2rem
   text-decoration: underline;
 }
 
+.helper-text {
+  color: black
+}
 
 
 </style>

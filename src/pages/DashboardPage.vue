@@ -199,8 +199,32 @@ onMounted(async () => {
 
 <style scoped>
 .dashboard {
-  max-width: 960px;
+  max-width: 1080px;
+  width: 100%;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.loading-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  border: 1px dashed rgba(15, 23, 42, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text-secondary);
+}
+
+.loading-state i,
+.empty-state i {
+  font-size: 2rem;
+  color: var(--accent);
 }
 
 .room-section {
@@ -208,65 +232,109 @@ onMounted(async () => {
 }
 
 .section-label {
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--text-color-secondary);
+  color: var(--text-secondary);
   margin: 0 0 1rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .room-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.25rem;
 }
 
 .room-card {
-  background: var(--surface-card);
+  background: var(--surface-panel);
   border: 1px solid var(--surface-border);
-  border-radius: 12px;
-  padding: 1.25rem;
+  border-radius: 20px;
+  padding: 1.4rem;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.75rem;
 }
 
 .room-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.1);
-  border-color: var(--primary-color);
+  transform: translateY(-3px);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.1);
+  border-color: rgba(15, 118, 110, 0.3);
 }
 
 .card-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.35rem;
 }
 
 .room-code {
   font-family: monospace;
-  font-size: 0.75rem;
-  background: var(--surface-ground);
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  color: var(--text-color-secondary);
-  letter-spacing: 0.05em;
+  font-size: 0.8rem;
+  background: rgba(15, 118, 110, 0.06);
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  color: var(--accent);
+  letter-spacing: 0.08em;
 }
 
-.room-badge {
-  font-size: 0.65rem;
+.room-badge,
+.owner-badge {
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  padding: 0.2rem 0.5rem;
-  border-radius: 20px;
+}
+
+.room-badge.member {
+  background: rgba(59, 130, 246, 0.08);
+  color: #2563eb;
+}
+
+.owner-badge {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+.room-title {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--text-primary);
+}
+
+.room-date {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dialog-label {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dialog-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.w-full {
+  width: 100%;
 }
 
 .room-badge.member {
