@@ -35,15 +35,12 @@ const handleSignin = async () => {
 
 <template>
   <div class="page-container">
-    <div class="bg-shape"></div>
-
     <div class="brand-header">
       <img src="/HuddleUP Logo.svg" alt="HuddleUp Logo" class="brand-logo" />
       <h1 class="brand-name">HuddleUp</h1>
     </div>
 
     <div class="content-wrapper">
-
       <div class="illustration-section">
         <img src="/login.png" alt="Team collaborating" class="illustration" />
       </div>
@@ -56,15 +53,14 @@ const handleSignin = async () => {
 
           <template #content>
             <form class="form-layout" @submit.prevent="handleSignin">
-
               <div class="input-group">
                 <label for="email">Email</label>
-                <InputText id="email" v-model="email" type="email" autocomplete="email" placeholder="Value" />
+                <InputText id="email" v-model="email" type="email" autocomplete="email" placeholder="user@gmail.com" />
               </div>
 
               <div class="input-group">
                 <label for="password">Password</label>
-                <InputText id="password" v-model="pass" type="password" autocomplete="current-password" placeholder="Value" />
+                <InputText id="password" v-model="pass" type="password" autocomplete="current-password" placeholder="password" />
               </div>
 
               <div class="action-group">
@@ -75,14 +71,13 @@ const handleSignin = async () => {
               <p class="message success-mess" v-if="valid">{{ valid }}</p>
 
               <p class="helper-text">
-                Dont have an account?
+                Don't have an account?
                 <RouterLink to="/signup" class="link">Sign Up</RouterLink>
               </p>
             </form>
           </template>
         </Card>
       </div>
-
     </div>
   </div>
 </template>
@@ -94,22 +89,11 @@ const handleSignin = async () => {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background-color: #ffffff;
   font-family: Arial, sans-serif;
-}
-
-.bg-shape {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 60%;
-  height: 100%;
-  /* This uses an exact SVG bezier curve that starts at the top,
-     swoops smoothly out to the left, and tucks back in at the bottom */
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' preserveAspectRatio='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M35,0 C10,40 15,70 30,100 L100,100 L100,0 Z' fill='%233b71ca'/%3E%3C/svg%3E");
-  background-size: 100% 100%;
+  background-image: url('/background.png');
+  background-size: cover;
+  background-position: center right;
   background-repeat: no-repeat;
-  z-index: 1;
 }
 
 /* Header */
@@ -223,21 +207,6 @@ const handleSignin = async () => {
   display: flex;
   justify-content: center;
   margin-top: 0.5rem;
-}
-
-:deep(.submit-button.login-btn) {
-  background-color: #7ab342;
-  border: none;
-  border-radius: 2rem;
-  padding: 0.75rem 3rem;
-  font-weight: bold;
-  font-size: 1rem;
-  transition: all 0.2s ease-in-out;
-}
-
-:deep(.submit-button.login-btn:hover) {
-  background-color: #6a9c39;
-  transform: translateY(-2px);
 }
 
 /* Messaging and Links */

@@ -42,20 +42,12 @@ const handleSignup = async () => {
 
 <template>
   <div class="page-container">
-    <div class="bg-shape"></div>
-
     <div class="brand-header">
       <img src="/HuddleUP Logo.svg" alt="HuddleUp Logo" class="brand-logo" />
       <h1 class="brand-name">HuddleUp</h1>
     </div>
 
-          <FloatLabel class="input-field" variant="in">
-            <InputText id="username" v-model="username" type="username" autocomplete="username" />
-            <label for="username">Username</label>
-          </FloatLabel>
-
     <div class="content-wrapper">
-
       <div class="illustration-section">
         <img src="/signup.png" alt="Creative team idea" class="illustration" />
       </div>
@@ -68,25 +60,24 @@ const handleSignup = async () => {
 
           <template #content>
             <form class="form-layout" @submit.prevent="handleSignup">
-
               <div class="input-group">
                 <label for="email">Email</label>
-                <InputText id="email" v-model="email" type="email" autocomplete="email" placeholder="Value" />
+                <InputText id="email" v-model="email" type="email" autocomplete="email" placeholder="user@gmail.com" />
               </div>
 
               <div class="input-group">
                 <label for="password">Password</label>
-                <InputText id="password" v-model="pass" type="password" autocomplete="new-password" placeholder="Value" />
+                <InputText id="password" v-model="pass" type="password" autocomplete="new-password" placeholder="password" />
               </div>
 
               <div class="input-group">
                 <label for="verify">Verify Password</label>
-                <InputText id="verify" v-model="verify" type="password" autocomplete="new-password" placeholder="Value" />
+                <InputText id="verify" v-model="verify" type="password" autocomplete="new-password" placeholder="password" />
               </div>
 
               <div class="input-group">
                 <label for="username">Username</label>
-                <InputText id="username" v-model="username" type="text" autocomplete="username" placeholder="Value" />
+                <InputText id="username" v-model="username" type="text" autocomplete="username" placeholder="username" />
               </div>
 
               <div class="action-group">
@@ -104,7 +95,6 @@ const handleSignup = async () => {
           </template>
         </Card>
       </div>
-
     </div>
   </div>
 </template>
@@ -116,22 +106,12 @@ const handleSignup = async () => {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background-color: #ffffff;
   font-family: Arial, sans-serif;
-}
 
-.bg-shape {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 60%;
-  height: 100%;
-  /* This uses an exact SVG bezier curve that starts at the top,
-     swoops smoothly out to the left, and tucks back in at the bottom */
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' preserveAspectRatio='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M35,0 C10,40 15,70 30,100 L100,100 L100,0 Z' fill='%233b71ca'/%3E%3C/svg%3E");
-  background-size: 100% 100%;
+  background-image: url('/background.png');
+  background-size: cover;
+  background-position: center right;
   background-repeat: no-repeat;
-  z-index: 1;
 }
 
 /* Header */
@@ -153,7 +133,7 @@ const handleSignup = async () => {
 .brand-name {
   font-size: 2rem;
   font-weight: 800;
-  color: #000;
+  color: var(--p-surface-900);
   margin: 0;
 }
 
@@ -194,8 +174,6 @@ const handleSignup = async () => {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 1.5rem !important;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
   padding: 1rem;
   color: white;
 }
@@ -230,8 +208,6 @@ const handleSignup = async () => {
 
 :deep(.p-inputtext) {
   width: 100%;
-  border-radius: 2rem;
-  padding: 0.75rem 1.5rem;
   border: none;
   font-size: 1rem;
 }
@@ -245,21 +221,6 @@ const handleSignup = async () => {
   display: flex;
   justify-content: center;
   margin-top: 0.5rem;
-}
-
-:deep(.submit-button.signup-btn) {
-  background-color: #7ab342; /* Darker blue button */
-  border: none;
-  border-radius: 2rem;
-  padding: 0.75rem 3rem;
-  font-weight: bold;
-  font-size: 1rem;
-  transition: all 0.2s ease-in-out;
-}
-
-:deep(.submit-button.signup-btn:hover) {
-  background-color: #6a9c39;
-  transform: translateY(-2px);
 }
 
 /* Messaging and Links */
