@@ -25,7 +25,6 @@ const {
   toggleTask,
   room,
   isAdmin,
-  fetchMembers,
   members,
 } = useTasks()
 
@@ -200,16 +199,12 @@ watch(
           v-for="task in assignedTasks"
           :key="task.task_id"
           class="task-card"
-          :class="{ completed: task.status_task === 'inactive' }"
+          :class="{ completed: task.marked_done }"
           @click="toggleTask(task)"
         >
-          <Checkbox
-            :modelValue="task.status_task === 'inactive'"
-            :binary="true"
-            :disabled="!isAdmin"
-            @click.stop
-          />
+          <Checkbox :modelValue="task.marked_done" :binary="true" @click.stop />
           <span class="task-title">{{ task.title }}</span>
+          <span class="done-counter">{{ task.done_count }}/{{ task.total_count }}</span>
           <Button
             v-if="isAdmin"
             icon="pi pi-trash"
@@ -276,5 +271,12 @@ watch(
   padding: 0.25rem 0.75rem;
   font-size: 0.85rem;
   color: #444;
+}
+
+.done-counter {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: #888;
+  font-weight: 600;
 }
 </style>

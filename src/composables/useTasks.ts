@@ -10,6 +10,9 @@ export interface TaskData {
   task_created_at: string
   task_creator_id: string
   task_room_id: string
+  marked_done?: boolean // current user's status
+  done_count?: number // how many marked done
+  total_count?: number // total assigned
 }
 
 interface RoomInfo {
@@ -62,13 +65,27 @@ export function useTasks() {
 
     const { data, error: sbError } = await supabase
       .from('Task')
-      .select('*')
+      .select(
+        `
+            *,
+            Assigned_To (
+                user_id,
+                marked_done
+            )
+        `,
+      )
       .eq('task_room_id', room_id)
 
     if (sbError) {
       error.value = sbError.message
     } else if (data) {
-      assignedTasks.value = data
+      assignedTasks.value = data.map((task: any) => ({
+        ...task,
+        marked_done:
+          task.Assigned_To.find((a: any) => a.user_id === user.value?.id)?.marked_done ?? false,
+        done_count: task.Assigned_To.filter((a: any) => a.marked_done).length,
+        total_count: task.Assigned_To.length,
+      }))
     }
 
     isLoading.value = false
@@ -167,25 +184,25 @@ export function useTasks() {
   }
 
   const toggleTask = async (task: TaskData) => {
-    if (!task) return false
+    if (!task || !user.value) return false
     error.value = null
 
-    const newStatus = task.status_task === 'active' ? 'inactive' : 'active'
+    const newMarkedDone = !task.marked_done
+
     const { error: updateError } = await supabase
-      .from('Task')
-      .update({
-        status_task: newStatus,
-        completed_at: newStatus === 'inactive' ? new Date().toISOString() : null,
-      })
+      .from('Assigned_To')
+      .update({ marked_done: newMarkedDone })
       .eq('task_id', task.task_id)
+      .eq('user_id', user.value.id)
 
     if (updateError) {
       error.value = updateError.message
       return false
     }
 
-    task.status_task = newStatus
-    task.completed_at = newStatus === 'inactive' ? new Date().toISOString() : null
+    // Update local state reactively without refetching
+    task.marked_done = newMarkedDone
+    task.done_count = (task.done_count ?? 0) + (newMarkedDone ? 1 : -1)
     return true
   }
 
