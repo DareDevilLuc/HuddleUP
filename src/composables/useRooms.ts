@@ -195,6 +195,21 @@ export function useRooms() {
     if (!user.value) return false
     error.value = null
 
+    const { data: roomTasks } = await supabase
+      .from('Task')
+      .select('task_id')
+      .eq('task_room_id', roomId)
+
+    if (roomTasks && roomTasks.length > 0) {
+      const taskIds = roomTasks.map((task: any) => task.task_id)
+
+      await supabase
+        .from('Assigned_To')
+        .delete()
+        .eq('user_id', user.value.id)
+        .in('task_id', taskIds)
+    }
+
     const { error: leaveError } = await supabase
       .from('Joins')
       .delete()
