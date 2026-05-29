@@ -170,6 +170,22 @@ export function useRooms() {
       return null
     }
 
+    const { data: existingTasks } = await supabase
+      .from('Task')
+      .select('task_id')
+      .eq('task_room_id', room.room_id)
+
+    if (existingTasks && existingTasks.length > 0) {
+      const assignments = existingTasks.map((task: any) => ({
+        task_id: task.task_id,
+        user_id: user.value!.id,
+        marked_done: false,
+        assigned_at: new Date().toISOString(),
+      }))
+
+      await supabase.from('Assigned_To').insert(assignments)
+    }
+
     await fetchJoinedRooms()
     isLoading.value = false
     return { room, alreadyJoined: false }
@@ -202,6 +218,7 @@ export function useRooms() {
         fetchCreatedRooms()
         fetchJoinedRooms()
       })
+      .subscribe()
   }
 
   return {

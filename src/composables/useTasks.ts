@@ -10,9 +10,9 @@ export interface TaskData {
   task_created_at: string
   task_creator_id: string
   task_room_id: string
-  marked_done?: boolean // current user's status
-  done_count?: number // how many marked done
-  total_count?: number // total assigned
+  marked_done?: boolean
+  done_count?: number
+  total_count?: number
 }
 
 interface RoomInfo {
@@ -38,9 +38,9 @@ const fetchMembers = async (room_id: string) => {
     .from('Joins')
     .select(
       `
-            user_id,
-            User ( user_id, username, email )
-        `,
+      user_id,
+      User ( user_id, username, email )
+    `,
     )
     .eq('room_id', room_id)
 
@@ -67,12 +67,12 @@ export function useTasks() {
       .from('Task')
       .select(
         `
-            *,
-            Assigned_To (
-                user_id,
-                marked_done
-            )
-        `,
+        *,
+        Assigned_To (
+          user_id,
+          marked_done
+        )
+      `,
       )
       .eq('task_room_id', room_id)
 
@@ -89,6 +89,25 @@ export function useTasks() {
     }
 
     isLoading.value = false
+  }
+
+  const subscribeToTasks = () => {
+    if (!room.value) return
+    supabase
+      .channel(`tasks-${room.value.room_id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'Assigned_To',
+        },
+        () => {
+          fetchAssignedTasks(room.value!.room_id)
+          fetchMembers(room.value!.room_id)
+        },
+      )
+      .subscribe()
   }
 
   const loadRoom = async (roomCodeID: string) => {
@@ -111,6 +130,7 @@ export function useTasks() {
     room.value = roomData
     await fetchAssignedTasks(roomData.room_id)
     await fetchMembers(roomData.room_id)
+    subscribeToTasks()
     isLoading.value = false
     return roomData
   }
@@ -138,18 +158,18 @@ export function useTasks() {
       return null
     }
 
-    const { data: members, error: membersError } = await supabase
+    const { data: roomMembers, error: membersError } = await supabase
       .from('Joins')
       .select('user_id')
       .eq('room_id', room.value.room_id)
 
-    if (membersError || !members) {
+    if (membersError || !roomMembers) {
       error.value = membersError?.message || 'Failed to fetch room members.'
       isLoading.value = false
       return null
     }
 
-    const assignments = members.map((member: any) => ({
+    const assignments = roomMembers.map((member: any) => ({
       task_id: taskData.task_id,
       user_id: member.user_id,
       assigned_at: new Date().toISOString(),
@@ -200,7 +220,6 @@ export function useTasks() {
       return false
     }
 
-    // Update local state reactively without refetching
     task.marked_done = newMarkedDone
     task.done_count = (task.done_count ?? 0) + (newMarkedDone ? 1 : -1)
     return true
@@ -210,14 +229,15 @@ export function useTasks() {
     room,
     isAdmin,
     fetchAssignedTasks,
+    fetchMembers,
     loadRoom,
     createTask,
     deleteTask,
     toggleTask,
+    subscribeToTasks,
     assignedTasks,
     isLoading,
     error,
-    fetchMembers,
     members,
   }
 }
