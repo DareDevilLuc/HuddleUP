@@ -17,12 +17,19 @@ const verify = ref('')
 const error = ref('')
 const success = ref('')
 
+const isValidEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())
+
 const handleSignup = async () => {
   error.value = ''
   success.value = ''
 
   if (!email.value.trim() || !pass.value.trim() || !verify.value.trim() || !username.value.trim()) {
     error.value = 'Please complete all fields.'
+    return
+  }
+
+  if (!isValidEmail(email.value)) {
+    error.value = 'Please enter a valid email address.'
     return
   }
 
