@@ -203,7 +203,7 @@ watch(
             <Avatar icon="pi pi-user" size="large" shape="circle" class="member-avatar" />
             
             <div class="member-info">
-              <span class="member-name">{{ member.username }} <span v-if="member.user_id === room?.created_by" class="owner-badge">(Owner)</span></span>
+              <span class="member-name">{{ member.username }} <span v-if="member.user_id === room?.room_creator_id" class="owner-badge">(Owner)</span></span>
               <div class="member-progress-track">
                 <div class="member-progress-fill" :style="{ width: overallProgress + '%' }"></div>
               </div>
