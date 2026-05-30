@@ -42,5 +42,24 @@ export function useAuth() {
     })
   }
 
-  return { user, signUp, signIn, signOut, initAuth }
+  // Update username
+  const updateUsername = async (newUsername: string) => {
+    if (!user.value) return false
+    
+    const { error } = await supabase.auth.updateUser({
+      data: { username: newUsername }
+    })
+    
+    if (error) {
+      console.error('Error updating username:', error)
+      return false
+    }
+    
+    if (user.value) {
+      user.value.user_metadata = { ...user.value.user_metadata, username: newUsername }
+    }
+    return true
+  }
+
+  return { user, signUp, signIn, signOut, initAuth, updateUsername }
 }

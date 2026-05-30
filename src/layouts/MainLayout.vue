@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, computed } from 'vue';
+import { onMounted, computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuth } from '@/composables/useAuth';
 import { useRooms } from '@/composables/useRooms';
@@ -7,10 +7,39 @@ import { useRooms } from '@/composables/useRooms';
 import 'primeicons/primeicons.css';
 import Avatar from 'primevue/avatar';
 import Button from 'primevue/button';
+import Menu from 'primevue/menu';
+import Dialog from 'primevue/dialog';
+import InputText from 'primevue/inputtext';
 
 const router = useRouter();
-const { user, signOut } = useAuth();
+const { user, signOut, updateUsername } = useAuth();
 const { createdRooms, joinedRooms, fetchCreatedRooms, fetchJoinedRooms, subscribeToRooms } = useRooms();
+
+const settingsMenu = ref();
+const showEditProfile = ref(false);
+const newUsername = ref('');
+const isUpdatingProfile = ref(false);
+
+const toggleSettingsMenu = (event: Event) => {
+  settingsMenu.value?.toggle(event);
+};
+
+const settingsMenuItems = [
+  {
+    label: 'Edit Profile',
+    icon: 'pi pi-user-edit',
+    command: () => {
+      newUsername.value = username.value;
+      showEditProfile.value = true;
+    }
+  },
+  { separator: true },
+  {
+    label: 'Log Out',
+    icon: 'pi pi-sign-out',
+    command: () => handleSignOut()
+  }
+];
 
 onMounted(async () => {
   subscribeToRooms();
@@ -21,6 +50,14 @@ onMounted(async () => {
 const handleSignOut = async () => {
   await signOut();
   router.push('/login');
+};
+
+const handleSaveProfile = async () => {
+  if (!newUsername.value.trim()) return;
+  isUpdatingProfile.value = true;
+  await updateUsername(newUsername.value.trim());
+  showEditProfile.value = false;
+  isUpdatingProfile.value = false;
 };
 
 const username = computed(() => {
@@ -45,10 +82,6 @@ const username = computed(() => {
             <span class="user-email">{{ user?.email || 'Loading...' }}</span>
           </div>
         </div>
-        <button class="btn-logout" @click="handleSignOut">
-          <i class="pi pi-sign-out" />
-          <span>Log Out</span>
-        </button>
       </div>
 
       <nav class="sidebar-nav">
@@ -110,8 +143,39 @@ const username = computed(() => {
     </aside>
 
     <div class="content-container">
+      <div class="top-bar">
+        <div class="spacer" />
+        <Button
+          icon="pi pi-cog"
+          rounded
+          text
+          severity="secondary"
+          class="settings-btn"
+          @click="$event => settingsMenu?.toggle($event)"
+          aria-haspopup="true"
+          aria-controls="settings-menu"
+        />
+        <Menu
+          id="settings-menu"
+          ref="settingsMenu"
+          :model="settingsMenuItems"
+          :popup="true"
+          class="settings-menu"
+        />
+      </div>
       <RouterView />
     </div>
+
+    <Dialog v-model:visible="showEditProfile" header="Edit Profile" modal :style="{ width: '400px' }">
+      <div class="dialog-content">
+        <label class="dialog-label">Username</label>
+        <InputText v-model="newUsername" class="w-full" @keyup.enter="handleSaveProfile" autofocus />
+        <div class="dialog-actions mt-3 flex justify-end">
+          <Button label="Cancel" text severity="secondary" @click="showEditProfile = false" />
+          <Button label="Save" :loading="isUpdatingProfile" @click="handleSaveProfile" />
+        </div>
+      </div>
+    </Dialog>
   </div>
 </template>
 
@@ -232,7 +296,7 @@ const username = computed(() => {
 }
 
 .nav-item:hover {
-  background: rgba(255,255,255,0.15);
+  background: rgba(255, 255, 255, 0.15);
   color: #ffffff;
 }
 
@@ -293,6 +357,43 @@ const username = computed(() => {
   background: #6e8e24 !important;
 }
 
+
+/* ── Top Bar ── */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 1rem 1.5rem;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  gap: 0.5rem;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.settings-btn {
+  color: #151e30 !important;
+  transition: all 0.2s ease;
+}
+
+.dialog-label {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.dialog-actions {
+  gap: 0.5rem;
+}
+
+.w-full { width: 100%; }
+.mt-3 { margin-top: 1rem; }
+.flex { display: flex; }
+.justify-end { justify-content: flex-end; }
+
+/* ── Content Container Update ── */
 /* ── Content ── */
 .content-container {
   flex: 1;
@@ -301,46 +402,5 @@ const username = computed(() => {
   background: #f5f7fa;
   overflow-y: auto;
 }
-.user-card-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem; /* Slightly more breathing room */
-  margin-bottom: 1.5rem; /* Pushes the navigation down a bit */
-}
 
-.user-card {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  background: rgba(255, 255, 255, 0.18);
-  border-radius: 14px;
-  padding: 0.75rem 1rem;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-}
-
-.btn-logout {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  
-  /* Overriding default browser button styles */
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 10px;
-  color: #ffffff;
-  padding: 0.6rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  font-family: inherit; /* Stops the button from using a weird default font */
-  cursor: pointer;
-  width: 100%;
-  
-  transition: all 0.2s ease;
-}
-
-.btn-logout:hover {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.35);
-}
 </style>
