@@ -203,7 +203,7 @@ watch(
             @click="toggleTask(task)"
           >
             <div class="task-card-left">
-              <Checkbox :modelValue="task.marked_done" :binary="true" class="task-checkbox" @click.stop="toggleTask(task)" />
+              <Checkbox :modelValue="task.marked_done" :binary="true" variant="filled" class="task-checkbox" @click.stop="toggleTask(task)" />
               <div class="task-info">
                 <span class="task-title">{{ task.title }}</span>
                 <span class="task-desc">Task assigned to you and others. Please complete this before the deadline.</span>
@@ -231,7 +231,7 @@ watch(
             <Avatar icon="pi pi-user" size="large" shape="circle" class="member-avatar" />
 
             <div class="member-info">
-              <span class="member-name">{{ member.username }} <span v-if="member.user_id === room?.created_by" class="owner-badge">(Owner)</span></span>
+              <span class="member-name">{{ member.username }} <span v-if="member.user_id === room?.room_creator_id" class="owner-badge">(Owner)</span></span>
               <div class="member-progress-track">
                 <div class="member-progress-fill" :style="{ width: overallProgress + '%' }"></div>
               </div>
@@ -385,7 +385,7 @@ watch(
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #ffffff;
+  background: whitesmoke;
   border: 1.5px solid #eaeaea;
   border-radius: 16px;
   padding: 1.25rem 1.5rem;
