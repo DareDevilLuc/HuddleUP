@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref, watch, computed } from 'vue'
+import { onMounted, onUnmounted, ref, watch, computed, type ComputedRef } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useRooms } from '@/composables/useRooms'
 import { useAuth } from '@/composables/useAuth'
+import { supabase } from '../../utils/supabase'
 
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
@@ -14,7 +15,6 @@ const router = useRouter()
 const route = useRoute()
 const toast = useToast()
 const { createdRooms, joinedRooms, fetchCreatedRooms, fetchJoinedRooms, createRoom, joinRoom, isLoading, error } = useRooms()
-
 const { user } = useAuth()
 
 const username = computed(() => {
@@ -22,13 +22,31 @@ const username = computed(() => {
   return user.value?.user_metadata?.username || user.value?.email?.split('@')[0] || 'User'
 })
 
+const showCreateDialog = ref(false)
+const newRoomTitle = ref('')
+const showJoinDialog = ref(false)
+const joinCode = ref('')
+const isJoining = ref(false)
+const assignedTasks = ref<any[]>([])
+const roomStats = ref<Record<string, {
+  taskCount: number
+  memberCount: number
+  userCompleted: number
+  completedWork: number
+  totalPossible: number
+}>>({})
+const dashboardChannel = ref<any>(null)
+
+const allRooms: ComputedRef<any[]> = computed(() => [...joinedRooms.value, ...createdRooms.value])
+const roomProgressIndex = ref(0)
+
 const totalPeopleHuddled = computed(() => {
-  const uniqueTeammates = new Set()
+  const uniqueTeammates = new Set<string>()
 
   allRooms.value.forEach(room => {
     if (room.members && Array.isArray(room.members)) {
-      room.members.forEach(member => {
-        uniqueTeammates.add(member.user_id || member.id)
+      room.members.forEach((member: any) => {
+        uniqueTeammates.add(member.user_id)
       })
     }
   })
@@ -37,8 +55,176 @@ const totalPeopleHuddled = computed(() => {
   return count > 0 ? count : 0
 })
 
-const showCreateDialog = ref(false)
-const newRoomTitle = ref('')
+const totalTasks = computed(() =>
+  Object.values(roomStats.value).reduce((sum, stats) => sum + stats.taskCount, 0),
+)
+
+const completedTasks = computed(() =>
+  Object.values(roomStats.value).reduce((sum, stats) => sum + stats.userCompleted, 0),
+)
+
+const completionPercent = computed(() =>
+  totalTasks.value > 0 ? Math.round((completedTasks.value / totalTasks.value) * 100) : 0,
+)
+
+const totalActiveRooms = computed(() => joinedRooms.value.length + createdRooms.value.length)
+
+const currentRoom = computed(() => allRooms.value[roomProgressIndex.value] || null)
+
+const currentRoomStats = computed(() => {
+  if (!currentRoom.value) {
+    return {
+      taskCount: 0,
+      memberCount: 0,
+      userCompleted: 0,
+      completedWork: 0,
+      totalPossible: 0,
+    }
+  }
+  return roomStats.value[currentRoom.value.room_id] ?? {
+    taskCount: 0,
+    memberCount: 0,
+    userCompleted: 0,
+    completedWork: 0,
+    totalPossible: 0,
+  }
+})
+
+const currentRoomUserProgressPercent = computed(() =>
+  currentRoomStats.value.taskCount > 0
+    ? Math.round((currentRoomStats.value.userCompleted / currentRoomStats.value.taskCount) * 100)
+    : 0,
+)
+
+const currentRoomProgressPercent = computed(() =>
+  currentRoomStats.value.totalPossible > 0
+    ? Math.round((currentRoomStats.value.completedWork / currentRoomStats.value.totalPossible) * 100)
+    : 0,
+)
+
+const fetchAssignedTasksForUser = async () => {
+  if (!user.value) return
+
+  const { data, error: sbError } = await supabase
+    .from('Assigned_To')
+    .select('marked_done, Task ( task_id, title, task_room_id )')
+    .eq('user_id', user.value.id)
+
+  if (sbError) {
+    console.error('Failed to fetch assigned tasks:', sbError.message)
+    return
+  }
+
+  assignedTasks.value = (data || [])
+    .filter((record: any) => record.Task)
+    .map((record: any) => ({
+      task_id: record.Task.task_id,
+      title: record.Task.title,
+      task_room_id: record.Task.task_room_id,
+      marked_done: record.marked_done,
+    }))
+}
+
+const fetchRoomProgressStats = async () => {
+  if (!user.value || allRooms.value.length === 0) return
+
+  const roomIds = allRooms.value.map(room => room.room_id)
+
+  const { data, error: sbError } = await supabase
+    .from('Task')
+    .select('task_id, task_room_id, Assigned_To ( user_id, marked_done )')
+    .in('task_room_id', roomIds)
+
+  if (sbError) {
+    console.error('Failed to fetch room progress stats:', sbError.message)
+    return
+  }
+
+  const stats: Record<string, {
+    taskCount: number
+    memberCount: number
+    userCompleted: number
+    completedWork: number
+    totalPossible: number
+  }> = {}
+
+  allRooms.value.forEach(room => {
+    const memberCount = Array.isArray(room.members) ? room.members.length : 0
+    stats[room.room_id] = {
+      taskCount: 0,
+      memberCount,
+      userCompleted: 0,
+      completedWork: 0,
+      totalPossible: 0,
+    }
+  })
+
+  const tasks = data || []
+  tasks.forEach((task: any) => {
+    const roomId = task.task_room_id
+    const roomStat = stats[roomId]
+    if (!roomStat) return
+
+    roomStat.taskCount += 1
+    roomStat.totalPossible = roomStat.taskCount * roomStat.memberCount
+
+    const assigned = Array.isArray(task.Assigned_To) ? task.Assigned_To : []
+    assigned.forEach((assignment: any) => {
+      if (assignment.marked_done) {
+        roomStat.completedWork += 1
+      }
+      if (assignment.user_id === user.value?.id && assignment.marked_done) {
+        roomStat.userCompleted += 1
+      }
+    })
+  })
+
+  Object.values(stats).forEach((roomStat) => {
+    roomStat.totalPossible = roomStat.taskCount * roomStat.memberCount
+  })
+
+  roomStats.value = stats
+}
+
+const refreshDashboardData = async () => {
+  await fetchAssignedTasksForUser()
+  await fetchRoomProgressStats()
+}
+
+const setupDashboardSubscription = () => {
+  if (dashboardChannel.value) return
+
+  dashboardChannel.value = supabase
+    .channel('dashboard-stats')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'Assigned_To' },
+      () => {
+        refreshDashboardData()
+      },
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'Task' },
+      () => {
+        refreshDashboardData()
+      },
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'Joins' },
+      () => {
+        refreshDashboardData()
+      },
+    )
+    .subscribe()
+}
+
+const teardownDashboardSubscription = () => {
+  if (!dashboardChannel.value) return
+  supabase.removeChannel(dashboardChannel.value)
+  dashboardChannel.value = null
+}
 
 const handleCreateRoom = async () => {
   if (!newRoomTitle.value.trim()) return
@@ -48,14 +234,11 @@ const handleCreateRoom = async () => {
     showCreateDialog.value = false
     newRoomTitle.value = ''
     await fetchJoinedRooms()
+    await refreshDashboardData()
   } else {
     toast.add({ severity: 'error', summary: 'Error', detail: error.value || 'Could not create room.', life: 3000 })
   }
 }
-
-const showJoinDialog = ref(false)
-const joinCode = ref('')
-const isJoining = ref(false)
 
 const handleJoinRoom = async () => {
   if (!joinCode.value.trim()) return
@@ -78,6 +261,7 @@ const handleJoinRoom = async () => {
 
   toast.add({ severity: 'success', summary: 'Joined!', detail: `Welcome to "${result.room.title}"`, life: 3000 })
   await fetchJoinedRooms()
+  await refreshDashboardData()
   showJoinDialog.value = false
   const code = joinCode.value.trim().toUpperCase()
   joinCode.value = ''
@@ -93,16 +277,6 @@ const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-const totalTasks = computed(() => 0)
-const completedTasks = computed(() => 0)
-const completionPercent = computed(() =>
-  totalTasks.value > 0 ? Math.round((completedTasks.value / totalTasks.value) * 100) : 0
-)
-const totalActiveRooms = computed(() => joinedRooms.value.length + createdRooms.value.length)
-
-const roomProgressIndex = ref(0)
-const allRooms = computed(() => [...joinedRooms.value, ...createdRooms.value])
-
 const prevRoom = () => {
   if (roomProgressIndex.value > 0) roomProgressIndex.value--
 }
@@ -116,11 +290,21 @@ watch(() => route.query.action, (action) => {
   if (action) router.replace({ query: {} })
 }, { immediate: true })
 
+watch([allRooms, user], () => {
+  refreshDashboardData()
+}, { immediate: true })
+
 onMounted(async () => {
   await fetchCreatedRooms()
   await fetchJoinedRooms()
   if (route.query.action === 'join') showJoinDialog.value = true
   if (route.query.action === 'create') showCreateDialog.value = true
+  await refreshDashboardData()
+  setupDashboardSubscription()
+})
+
+onUnmounted(() => {
+  teardownDashboardSubscription()
 })
 </script>
 
@@ -158,7 +342,7 @@ onMounted(async () => {
       </div>
 
       <div class="stat-card stat-card--tasks">
-        <div class="stat-card__value">{{ totalTasks }}/{{ totalTasks }}</div>
+        <div class="stat-card__value">{{ completedTasks }}/{{ totalTasks }}</div>
         <div class="stat-card__sub">
           <div>{{ totalTasks }} Total Tasks across all rooms</div>
           <div>{{ completedTasks }} Completed ({{ completionPercent }}%)</div>
@@ -201,21 +385,37 @@ onMounted(async () => {
       <div v-else-if="allRooms.length === 0" class="empty-hint">
         Join or create a room and huddle up with your team.
       </div>
-      <div v-else class="room-progress-card" @click="goToRoom(allRooms[roomProgressIndex].room_code)">
+      <div v-else class="room-progress-card" @click="currentRoom && goToRoom(currentRoom.room_code)">
         <div class="rp-top">
-          <span class="rp-code">{{ allRooms[roomProgressIndex].room_code }}</span>
-          <span class="rp-badge" :class="createdRooms.find(r => r.room_code === allRooms[roomProgressIndex].room_code) ? 'owner' : 'member'">
-            {{ createdRooms.find(r => r.room_code === allRooms[roomProgressIndex].room_code) ? 'owner' : 'member' }}
+          <span class="rp-code">{{ currentRoom?.room_code }}</span>
+          <span class="rp-badge" :class="createdRooms.find(r => r.room_code === currentRoom?.room_code) ? 'owner' : 'member'">
+            {{ createdRooms.find(r => r.room_code === currentRoom?.room_code) ? 'owner' : 'member' }}
           </span>
         </div>
-        <div class="rp-title">{{ allRooms[roomProgressIndex].title }}</div>
-        <div class="rp-date">Created {{ formatDate(allRooms[roomProgressIndex].room_created_at) }}</div>
+        <div class="rp-title">{{ currentRoom?.title }}</div>
+        <div class="rp-date">Created {{ currentRoom ? formatDate(currentRoom.room_created_at) : '' }}</div>
+        <div class="rp-meta">
+          <div>Your Progress: {{ currentRoomStats.userCompleted }} / {{ currentRoomStats.taskCount }} ({{ currentRoomUserProgressPercent }}%)</div>
+          <div>Room Progress: {{ currentRoomStats.completedWork }} / {{ currentRoomStats.totalPossible }} ({{ currentRoomProgressPercent }}%)</div>
+        </div>
       </div>
     </div>
 
     <div class="section-block">
-      <div class="section-title">Tasks</div>
-      <div class="empty-hint">You don't have any tasks yet.</div>
+      <div class="section-header">
+        <span class="section-title">Your Assigned Tasks</span>
+      </div>
+      <div v-if="assignedTasks.length === 0" class="empty-hint">
+        You don't have any assigned tasks yet.
+      </div>
+      <div v-else class="task-list">
+        <div v-for="task in assignedTasks" :key="task.task_id" class="task-item">
+          <div class="task-item__title">{{ task.title }}</div>
+          <div class="task-item__status" :class="task.marked_done ? 'done' : 'pending'">
+            {{ task.marked_done ? 'Completed' : 'Pending' }}
+          </div>
+        </div>
+      </div>
     </div>
 
     <Dialog v-model:visible="showCreateDialog" header="Create a New Room" :style="{ width: '400px' }" modal>

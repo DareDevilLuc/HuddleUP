@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTasks } from '@/composables/useTasks'
 import { useRooms } from '@/composables/useRooms'
@@ -28,6 +28,7 @@ const {
   isAdmin,
   members,
   subscribeToTasks,
+  unsubscribeFromTasks
 } = useTasks()
 
 const toast = useToast()
@@ -36,13 +37,38 @@ const route = useRoute()
 const { leaveRoom, deleteRoom } = useRooms()
 const roomCode = route.params.roomCode as string
 
-// Calculate overall room progress based on completed tasks
+// ─── Overall Room Progress ──────────────────────────────────────────────────
+// Total possible = tasks × members (every member must complete every task)
+// Total done     = sum of all marked_done=true records across all tasks
 const overallProgress = computed(() => {
-  if (!assignedTasks.value || assignedTasks.value.length === 0) return 0
-  const done = assignedTasks.value.filter(t => t.marked_done).length
-  return Math.round((done / assignedTasks.value.length) * 100)
+  const taskCount = assignedTasks.value.length
+  const memberCount = members.value.length
+  if (taskCount === 0 || memberCount === 0) return 0
+
+  const totalPossible = taskCount * memberCount
+  const totalDone = assignedTasks.value.reduce(
+    (sum, task) => sum + (task.assignments?.filter(a => a.marked_done).length ?? 0),
+    0
+  )
+
+  return Math.round((totalDone / totalPossible) * 100)
 })
 
+// ─── Per-Member Progress ────────────────────────────────────────────────────
+// For a given member: how many tasks have they personally marked done?
+// Each task's `assignments` array holds the per-user marked_done records.
+function getMemberProgress(userId: string): number {
+  const taskCount = assignedTasks.value.length
+  if (taskCount === 0) return 0
+
+  const memberDone = assignedTasks.value.filter(
+    task => task.assignments?.find(a => a.user_id === userId)?.marked_done === true
+  ).length
+
+  return Math.round((memberDone / taskCount) * 100)
+}
+
+// ─── Task Actions ───────────────────────────────────────────────────────────
 const createTask = async () => {
   if (!newTaskTitle.value.trim()) {
     toast.add({ severity: 'warn', summary: 'Validation', detail: 'Task title is required.', life: 3000 })
@@ -107,8 +133,12 @@ const handleDeleteRoom = async () => {
 }
 
 onMounted(async () => {
-  subscribeToTasks()
   await loadRoomData(roomCode)
+  subscribeToTasks()
+})
+
+onUnmounted(() => {
+  unsubscribeFromTasks()
 })
 
 watch(
@@ -184,7 +214,7 @@ watch(
             
             <div class="task-card-right">
               <div class="avatar-group">
-                <Avatar v-for="(member, index) in members.slice(0,3)" :key="member.user_id" icon="pi pi-user" shape="circle" class="overlap-avatar" />
+                <Avatar v-for="member in members.slice(0, 3)" :key="member.user_id" icon="pi pi-user" shape="circle" class="overlap-avatar" />
               </div>
               <Button v-if="isAdmin" icon="pi pi-trash" severity="danger" text rounded @click.stop="handleDeleteTask(task)" />
             </div>
@@ -203,13 +233,21 @@ watch(
             <Avatar icon="pi pi-user" size="large" shape="circle" class="member-avatar" />
             
             <div class="member-info">
-              <span class="member-name">{{ member.username }} <span v-if="member.user_id === room?.room_creator_id" class="owner-badge">(Owner)</span></span>
+              <span class="member-name">
+                {{ member.username }}
+                <span v-if="member.user_id === room?.room_creator_id" class="owner-badge">(Owner)</span>
+              </span>
               <div class="member-progress-track">
-                <div class="member-progress-fill" :style="{ width: overallProgress + '%' }"></div>
+                <!-- ✅ Each member's own independent progress -->
+                <div
+                  class="member-progress-fill"
+                  :style="{ width: getMemberProgress(member.user_id) + '%' }"
+                />
               </div>
             </div>
             
-            <span class="member-percent">{{ overallProgress }}%</span>
+            <!-- ✅ Each member's own percentage -->
+            <span class="member-percent">{{ getMemberProgress(member.user_id) }}%</span>
           </div>
         </div>
       </div>
@@ -257,7 +295,7 @@ watch(
 .room-title {
   font-size: 2.8rem;
   font-weight: 800;
-  color: #7E9E34; /* Green matching your image */
+  color: #7E9E34;
   margin: 0;
   letter-spacing: -0.02em;
 }
@@ -278,7 +316,6 @@ watch(
   letter-spacing: 0.05em;
 }
 
-/* Overall Progress Bar */
 .room-progress-section {
   display: flex;
   flex-direction: column;
@@ -313,7 +350,6 @@ watch(
   gap: 3rem;
 }
 
-/* ── Column Shared ── */
 .column-header {
   display: flex;
   justify-content: space-between;
@@ -380,7 +416,6 @@ watch(
 
 .task-checkbox {
   margin-top: 0.2rem;
-
 }
 
 .task-info {
@@ -403,7 +438,6 @@ watch(
   max-width: 90%;
 }
 
-/* Completed Task Styles */
 .task-card.is-done .task-title {
   text-decoration: line-through;
   color: #b0b0b0;
@@ -415,7 +449,6 @@ watch(
   gap: 1rem;
 }
 
-/* Overlapping Avatars */
 .avatar-group {
   display: flex;
   align-items: center;
@@ -493,7 +526,6 @@ watch(
   text-align: right;
 }
 
-/* Utilities */
 .w-full { width: 100%; }
 .mt-3 { margin-top: 1rem; }
 .flex { display: flex; }
