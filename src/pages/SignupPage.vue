@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useAuth } from '@/composables/useAuth'
+import { useRouter } from 'vue-router'
+
 import Card from 'primevue/card'
 import InputText from 'primevue/inputtext'
 import Button from 'primevue/button'
-import { useAuth } from '@/composables/useAuth'
-import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const { signUp } = useAuth()

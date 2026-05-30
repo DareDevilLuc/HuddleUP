@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuth } from '@/composables/useAuth';
 import { useRooms } from '@/composables/useRooms';
+
+import EditProfile from '@/pages/EditProfile.vue'
 
 import 'primeicons/primeicons.css';
 import Avatar from 'primevue/avatar';
@@ -11,6 +14,7 @@ import Button from 'primevue/button';
 const router = useRouter();
 const { user, signOut } = useAuth();
 const { createdRooms, joinedRooms, fetchCreatedRooms, fetchJoinedRooms, subscribeToRooms } = useRooms();
+const showEditProfile = ref(false)
 
 onMounted(async () => {
   subscribeToRooms();
@@ -30,6 +34,7 @@ const username = computed(() => {
 
 <template>
   <div class="main-layout">
+    <EditProfile v-model:visible="showEditProfile" />
     <aside class="sidebar">
 
       <div class="sidebar-logo">
@@ -44,6 +49,7 @@ const username = computed(() => {
             <span class="user-name">{{ username }}</span>
             <span class="user-email">{{ user?.email || 'Loading...' }}</span>
           </div>
+          <i class="pi pi-pencil edit-icon" @click="showEditProfile = true" />
         </div>
         <button class="btn-logout" @click="handleSignOut">
           <i class="pi pi-sign-out" />
@@ -195,6 +201,20 @@ const username = computed(() => {
   text-overflow: ellipsis;
 }
 
+.edit-icon {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  padding: 0.3rem;
+  border-radius: 6px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.edit-icon:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.15);
+}
+
 /* Nav sections */
 .sidebar-nav {
   display: flex;
@@ -323,7 +343,7 @@ const username = computed(() => {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  
+
   /* Overriding default browser button styles */
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -335,7 +355,7 @@ const username = computed(() => {
   font-family: inherit; /* Stops the button from using a weird default font */
   cursor: pointer;
   width: 100%;
-  
+
   transition: all 0.2s ease;
 }
 
