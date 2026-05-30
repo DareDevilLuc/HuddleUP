@@ -175,7 +175,7 @@ watch(
             @click="toggleTask(task)"
           >
             <div class="task-card-left">
-              <Checkbox :modelValue="task.marked_done" :binary="true" class="task-checkbox" @click.stop="toggleTask(task)" />
+              <Checkbox :modelValue="task.marked_done" :binary="true" variant="filled" class="task-checkbox" @click.stop="toggleTask(task)" />
               <div class="task-info">
                 <span class="task-title">{{ task.title }}</span>
                 <span class="task-desc">Task assigned to you and others. Please complete this before the deadline.</span>
@@ -357,7 +357,7 @@ watch(
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #ffffff;
+  background: whitesmoke;
   border: 1.5px solid #eaeaea;
   border-radius: 16px;
   padding: 1.25rem 1.5rem;
@@ -380,6 +380,7 @@ watch(
 
 .task-checkbox {
   margin-top: 0.2rem;
+
 }
 
 .task-info {
