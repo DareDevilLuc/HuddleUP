@@ -227,7 +227,7 @@ const handleSignin = async () => {
   margin: 0;
 }
 
-.error-mess { color: #D32F2F; }
+.error-mess { color: #ff9999; }
 .success-mess { color: #99ff99; }
 
 .helper-text {
