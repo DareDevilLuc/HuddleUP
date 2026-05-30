@@ -64,7 +64,12 @@ const handleSave = async () => {
     <div class="modal-body">
       <div class="field">
         <label class="field-label">Username</label>
-        <InputText v-model="username" class="field-input" placeholder="Enter a username" />
+        <InputText
+          v-model="username"
+          class="field-input"
+          placeholder="Enter a username"
+          @keyup.enter="handleSave"
+        />
       </div>
 
       <div class="field">

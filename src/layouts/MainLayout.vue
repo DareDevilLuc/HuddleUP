@@ -1,31 +1,49 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuth } from '@/composables/useAuth';
-import { useRooms } from '@/composables/useRooms';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuth } from '@/composables/useAuth'
+import { useRooms } from '@/composables/useRooms'
 
 import EditProfile from '@/pages/EditProfile.vue'
 
-import 'primeicons/primeicons.css';
-import Avatar from 'primevue/avatar';
-import Button from 'primevue/button';
+import 'primeicons/primeicons.css'
+import Avatar from 'primevue/avatar'
+import Button from 'primevue/button'
 
-const router = useRouter();
-const { user, signOut } = useAuth();
-const { createdRooms, joinedRooms, fetchCreatedRooms, fetchJoinedRooms, subscribeToRooms } = useRooms();
+const router = useRouter()
+const { user, signOut } = useAuth()
+const { createdRooms, joinedRooms, fetchCreatedRooms, fetchJoinedRooms, subscribeToRooms } = useRooms()
+
 const showEditProfile = ref(false)
+const showSettingsMenu = ref(false)
+const settingsMenuRef = ref<HTMLElement | null>(null)
 
 onMounted(async () => {
-  subscribeToRooms();
-  await fetchCreatedRooms();
-  await fetchJoinedRooms();
-});
+  subscribeToRooms()
+  await fetchCreatedRooms()
+  await fetchJoinedRooms()
+  document.addEventListener('click', handleOutsideClick)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleOutsideClick)
+})
+
+const handleOutsideClick = (e: MouseEvent) => {
+  if (settingsMenuRef.value && !settingsMenuRef.value.contains(e.target as Node)) {
+    showSettingsMenu.value = false
+  }
+}
 
 const handleSignOut = async () => {
-  await signOut();
-  router.push('/login');
-};
+  await signOut()
+  router.push('/login')
+}
+
+const openEditProfile = () => {
+  showSettingsMenu.value = false
+  showEditProfile.value = true
+}
 
 const username = computed(() => {
   return user.value?.user_metadata?.username || user.value?.email?.split('@')[0] || 'User'
@@ -35,8 +53,8 @@ const username = computed(() => {
 <template>
   <div class="main-layout">
     <EditProfile v-model:visible="showEditProfile" />
-    <aside class="sidebar">
 
+    <aside class="sidebar">
       <div class="sidebar-logo">
         <img src="/your-photo.png" alt="HuddleUp Logo" class="logo-icon" />
         <span class="logo-text">HuddleUp</span>
@@ -49,12 +67,7 @@ const username = computed(() => {
             <span class="user-name">{{ username }}</span>
             <span class="user-email">{{ user?.email || 'Loading...' }}</span>
           </div>
-          <i class="pi pi-pencil edit-icon" @click="showEditProfile = true" />
         </div>
-        <button class="btn-logout" @click="handleSignOut">
-          <i class="pi pi-sign-out" />
-          <span>Log Out</span>
-        </button>
       </div>
 
       <nav class="sidebar-nav">
@@ -116,6 +129,29 @@ const username = computed(() => {
     </aside>
 
     <div class="content-container">
+      <!-- Top bar with settings -->
+      <div class="topbar">
+        <div class="topbar-right" ref="settingsMenuRef">
+          <button class="settings-btn" @click.stop="showSettingsMenu = !showSettingsMenu">
+            <i class="pi pi-cog" />
+          </button>
+
+          <transition name="menu-fade">
+            <div v-if="showSettingsMenu" class="settings-menu">
+              <button class="menu-item" @click="openEditProfile">
+                <i class="pi pi-user-edit" />
+                <span>Edit Profile</span>
+              </button>
+              <div class="menu-divider" />
+              <button class="menu-item danger" @click="handleSignOut">
+                <i class="pi pi-sign-out" />
+                <span>Log Out</span>
+              </button>
+            </div>
+          </transition>
+        </div>
+      </div>
+
       <RouterView />
     </div>
   </div>
@@ -148,11 +184,11 @@ const username = computed(() => {
 }
 
 .logo-icon {
-  /* Using width/height instead of font-size to keep the exact same size as the old icon */
   width: 1.4rem;
   height: 1.4rem;
-  object-fit: contain; /* Ensures your photo doesn't stretch or squish */
+  object-fit: contain;
 }
+
 .logo-text {
   font-size: 1.25rem;
   font-weight: 700;
@@ -161,14 +197,20 @@ const username = computed(() => {
 }
 
 /* User Card */
+.user-card-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
 .user-card {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  background: rgba(255,255,255,0.18);
+  background: rgba(255, 255, 255, 0.18);
   border-radius: 14px;
   padding: 0.75rem 1rem;
-  margin-bottom: 0.75rem;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
 }
 
@@ -195,24 +237,10 @@ const username = computed(() => {
 
 .user-email {
   font-size: 0.75rem;
-  color: rgba(255,255,255,0.75);
+  color: rgba(255, 255, 255, 0.75);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.edit-icon {
-  margin-left: auto;
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.6);
-  cursor: pointer;
-  padding: 0.3rem;
-  border-radius: 6px;
-  transition: color 0.15s ease, background 0.15s ease;
-}
-.edit-icon:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.15);
 }
 
 /* Nav sections */
@@ -227,13 +255,13 @@ const username = computed(() => {
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.08em;
-  color: rgba(255,255,255,0.65);
+  color: rgba(255, 255, 255, 0.65);
   margin: 0.5rem 0.75rem 0.4rem;
 }
 
 .nav-empty {
   font-size: 0.78rem;
-  color: rgba(255,255,255,0.5);
+  color: rgba(255, 255, 255, 0.5);
   margin: 0 0.75rem 0.25rem;
   font-style: italic;
 }
@@ -245,19 +273,19 @@ const username = computed(() => {
   padding: 0.55rem 0.75rem;
   border-radius: 10px;
   cursor: pointer;
-  color: rgba(255,255,255,0.85);
+  color: rgba(255, 255, 255, 0.85);
   font-size: 0.88rem;
   font-weight: 500;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
 .nav-item:hover {
-  background: rgba(255,255,255,0.15);
+  background: rgba(255, 255, 255, 0.15);
   color: #ffffff;
 }
 
 .nav-item.active {
-  background: rgba(255,255,255,0.22);
+  background: rgba(255, 255, 255, 0.22);
   color: #ffffff;
   font-weight: 600;
 }
@@ -290,7 +318,7 @@ const username = computed(() => {
 }
 
 .btn-create {
-  background: #4279CC !important;
+  background: #4279cc !important;
   backdrop-filter: blur(12px) !important;
   -webkit-backdrop-filter: blur(12px) !important;
   border: 1px solid rgba(255, 255, 255, 0.35) !important;
@@ -302,7 +330,7 @@ const username = computed(() => {
 }
 
 .btn-join {
-  background: #7E9E34 !important;
+  background: #7e9e34 !important;
   backdrop-filter: blur(12px) !important;
   -webkit-backdrop-filter: blur(12px) !important;
   border: 1px solid rgba(255, 255, 255, 0.25) !important;
@@ -321,46 +349,104 @@ const username = computed(() => {
   background: #f5f7fa;
   overflow-y: auto;
 }
-.user-card-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem; /* Slightly more breathing room */
-  margin-bottom: 1.5rem; /* Pushes the navigation down a bit */
-}
 
-.user-card {
+/* ── Topbar ── */
+.topbar {
   display: flex;
+  justify-content: flex-end;
   align-items: center;
-  gap: 0.75rem;
-  background: rgba(255, 255, 255, 0.18);
-  border-radius: 14px;
-  padding: 0.75rem 1rem;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  padding: 0.75rem 1.5rem;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.btn-logout {
+.topbar-right {
+  position: relative;
+}
+
+.settings-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-
-  /* Overriding default browser button styles */
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  width: 36px;
+  height: 36px;
   border-radius: 10px;
-  color: #ffffff;
-  padding: 0.6rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  font-family: inherit; /* Stops the button from using a weird default font */
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #6b7280;
   cursor: pointer;
-  width: 100%;
-
-  transition: all 0.2s ease;
+  font-size: 1rem;
+  transition: all 0.15s ease;
 }
 
-.btn-logout:hover {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.35);
+.settings-btn:hover {
+  background: #f3f4f6;
+  color: #3a72d4;
+  border-color: #d1d5db;
+}
+
+/* Dropdown menu */
+.settings-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  min-width: 170px;
+  padding: 0.4rem;
+  z-index: 100;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  text-align: left;
+}
+
+.menu-item:hover {
+  background: #f3f4f6;
+  color: #3a72d4;
+}
+
+.menu-item.danger:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.menu-item i {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.menu-divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 0.3rem 0;
+}
+
+/* Menu animation */
+.menu-fade-enter-active,
+.menu-fade-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.menu-fade-enter-from,
+.menu-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 </style>
