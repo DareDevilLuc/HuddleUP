@@ -16,6 +16,10 @@ const showCreateTask = ref(false)
 const newTaskTitle = ref('')
 const isSubmitting = ref(false)
 
+const showEditTask = ref(false)
+const editingTaskId = ref<string | null>(null)
+const editingTaskTitle = ref('')
+
 const {
   assignedTasks,
   isLoading,
@@ -24,6 +28,7 @@ const {
   createTask: createTaskAction,
   deleteTask,
   toggleTask,
+  updateTask,
   room,
   isAdmin,
   members,
@@ -110,21 +115,37 @@ const editingTask = ref<any>(null)
 const editTaskTitle = ref('')
 
 const openEditTask = (task: any) => {
-  editingTask.value = task
-  editTaskTitle.value = task.title
+  editingTaskId.value = task.task_id
+  editingTaskTitle.value = task.title
+  showEditTask.value = true
 }
 
 const handleEditTask = async () => {
-  if (!editTaskTitle.value.trim()) return
-  isSubmitting.value = true
-  const success = await updateTask(editingTask.value.task_id, editTaskTitle.value.trim())
-  if (!success) {
-    toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to update task.', life: 3000 })
-  } else {
-    toast.add({ severity: 'success', summary: 'Updated', detail: 'Task updated!', life: 3000 })
-    editingTask.value = null
+  if (!editingTaskId.value || !editingTaskTitle.value.trim()) {
+    toast.add({ severity: 'warn', summary: 'Validation', detail: 'Task title is required.', life: 3000 })
+    return
   }
-  isSubmitting.value = false
+
+  isSubmitting.value = true
+  try {
+    const success = await updateTask(editingTaskId.value, editingTaskTitle.value.trim())
+
+    if (!success) {
+      toast.add({ severity: 'error', summary: 'Error', detail: error.value || 'Failed to update task.', life: 3000 })
+      isSubmitting.value = false
+      return
+    }
+
+    toast.add({ severity: 'success', summary: 'Done', detail: 'Task updated!', life: 3000 })
+    showEditTask.value = false
+    editingTaskId.value = null
+    editingTaskTitle.value = ''
+  } catch (err) {
+    console.error('Update error:', err)
+    toast.add({ severity: 'error', summary: 'Error', detail: 'An error occurred while updating.', life: 3000 })
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 onMounted(async () => {
@@ -150,13 +171,6 @@ watch(
         <h1 class="room-title">{{ room?.title || 'Loading Room...' }}</h1>
 
         <div class="header-actions">
-          <Button
-            v-if="isAdmin"
-            icon="pi pi-pencil"
-            severity="secondary"
-            text rounded
-            @click.stop="openEditTask(task)"
-          />
           <Button v-if="isAdmin" icon="pi pi-trash" severity="danger" text rounded @click="handleDeleteRoom" title="Delete Room" />
           <Button v-else icon="pi pi-sign-out" severity="secondary" text rounded @click="handleLeaveRoom" title="Leave Room" />
 
@@ -214,6 +228,7 @@ watch(
               <div class="avatar-group">
                 <Avatar v-for="(member, index) in members.slice(0,3)" :key="member.user_id" icon="pi pi-user" shape="circle" class="overlap-avatar" />
               </div>
+              <Button v-if="isAdmin" icon="pi pi-pencil" severity="secondary" text rounded @click.stop="openEditTask(task)" title="Edit Task" />
               <Button v-if="isAdmin" icon="pi pi-trash" severity="danger" text rounded @click.stop="handleDeleteTask(task)" />
             </div>
           </div>
@@ -250,6 +265,16 @@ watch(
         <div class="dialog-actions mt-3 flex justify-end">
           <Button label="Cancel" text severity="secondary" @click="showCreateTask = false" />
           <Button label="Add Task" :loading="isSubmitting" @click="createTask" />
+        </div>
+      </div>
+    </Dialog>
+
+    <Dialog v-model:visible="showEditTask" header="Edit Task" modal :style="{ width: '400px' }">
+      <div class="dialog-content">
+        <InputText v-model="editingTaskTitle" placeholder="Update task..." class="w-full" @keyup.enter="handleEditTask" autofocus />
+        <div class="dialog-actions mt-3 flex justify-end">
+          <Button label="Cancel" text severity="secondary" @click="showEditTask = false" />
+          <Button label="Save Changes" :loading="isSubmitting" @click="handleEditTask" />
         </div>
       </div>
     </Dialog>
@@ -385,7 +410,7 @@ watch(
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: whitesmoke;
+  background: rgb(255, 255, 255);
   border: 1.5px solid #eaeaea;
   border-radius: 16px;
   padding: 1.25rem 1.5rem;
@@ -408,6 +433,7 @@ watch(
 
 .task-checkbox {
   margin-top: 0.2rem;
+
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 

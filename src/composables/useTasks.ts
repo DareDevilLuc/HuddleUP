@@ -225,19 +225,19 @@ export function useTasks() {
   }
 
   const updateTask = async (taskId: string, newTitle: string) => {
-  const { error } = await supabase
-    .from('tasks')
-    .update({ title: newTitle })
-    .eq('task_id', taskId)
+    const { error } = await supabase
+      .from('Task')
+      .update({ title: newTitle })
+      .eq('task_id', taskId)
 
-  if (error) return false
+    if (error) return false
 
-  // Update local state
-  const task = assignedTasks.value.find(t => t.task_id === taskId)
-  if (task) task.title = newTitle
+    // Update local state
+    const task = assignedTasks.value.find(t => t.task_id === taskId)
+    if (task) task.title = newTitle
 
-  return true
-}
+    return true
+  }
 
   return {
     room,
@@ -248,6 +248,7 @@ export function useTasks() {
     createTask,
     deleteTask,
     toggleTask,
+    updateTask,
     subscribeToTasks,
     assignedTasks,
     isLoading,
