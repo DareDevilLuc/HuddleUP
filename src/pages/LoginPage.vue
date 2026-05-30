@@ -15,12 +15,19 @@ const pass = ref('')
 const error = ref('')
 const valid = ref('')
 
+const isValidEmail = (val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())
+
 const handleSignin = async () => {
   error.value = ''
   valid.value = ''
 
   if (!email.value.trim() || !pass.value.trim()) {
     error.value = 'Please enter both email and password.'
+    return
+  }
+
+  if (!isValidEmail(email.value)) {
+    error.value = 'Please enter a valid email address.'
     return
   }
 
@@ -220,7 +227,7 @@ const handleSignin = async () => {
   margin: 0;
 }
 
-.error-mess { color: #ff9999; }
+.error-mess { color: #D32F2F; }
 .success-mess { color: #99ff99; }
 
 .helper-text {
