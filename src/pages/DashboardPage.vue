@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch, computed, type ComputedRef } from 'vue'
+import { onMounted, ref, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useRooms } from '@/composables/useRooms'
 import { useAuth } from '@/composables/useAuth'
@@ -15,216 +15,115 @@ const router = useRouter()
 const route = useRoute()
 const toast = useToast()
 const { createdRooms, joinedRooms, fetchCreatedRooms, fetchJoinedRooms, createRoom, joinRoom, isLoading, error } = useRooms()
+
 const { user } = useAuth()
 
+// ── Dashboard-local task state ────────────────────────
+interface DashboardTask {
+  task_id: string
+  title: string
+  task_room_id: string
+  marked_done: boolean
+}
+
+const dashboardTasks = ref<DashboardTask[]>([])
+
+const fetchAllMyTasks = async () => {
+  if (!user.value) return
+
+  const { data, error: sbError } = await supabase
+    .from('Assigned_To')
+    .select(`
+      marked_done,
+      Task (
+        task_id,
+        title,
+        task_room_id
+      )
+    `)
+    .eq('user_id', user.value.id)
+
+  if (sbError || !data) return
+
+  dashboardTasks.value = data
+    .filter((row: any) => row.Task)
+    .map((row: any) => ({
+      task_id: row.Task.task_id,
+      title: row.Task.title,
+      task_room_id: row.Task.task_room_id,
+      marked_done: row.marked_done,
+    }))
+}
+
+// ── Stats ─────────────────────────────────────────────
 const username = computed(() => {
   if (!user.value) return 'User'
   return user.value?.user_metadata?.username || user.value?.email?.split('@')[0] || 'User'
 })
 
-const showCreateDialog = ref(false)
-const newRoomTitle = ref('')
-const showJoinDialog = ref(false)
-const joinCode = ref('')
-const isJoining = ref(false)
-const assignedTasks = ref<any[]>([])
-const roomStats = ref<Record<string, {
-  taskCount: number
-  memberCount: number
-  userCompleted: number
-  completedWork: number
-  totalPossible: number
-}>>({})
-const dashboardChannel = ref<any>(null)
-
-const allRooms: ComputedRef<any[]> = computed(() => [...joinedRooms.value, ...createdRooms.value])
-const roomProgressIndex = ref(0)
-
 const totalPeopleHuddled = computed(() => {
-  const uniqueTeammates = new Set<string>()
-
+  const uniqueTeammates = new Set()
   allRooms.value.forEach(room => {
     if (room.members && Array.isArray(room.members)) {
-      room.members.forEach((member: any) => {
-        uniqueTeammates.add(member.user_id)
-      })
+      room.members.forEach((member: any) => uniqueTeammates.add(member.user_id))
     }
   })
-
   const count = uniqueTeammates.size > 0 ? uniqueTeammates.size - 1 : 0
   return count > 0 ? count : 0
 })
 
-const totalTasks = computed(() =>
-  Object.values(roomStats.value).reduce((sum, stats) => sum + stats.taskCount, 0),
-)
-
-const completedTasks = computed(() =>
-  Object.values(roomStats.value).reduce((sum, stats) => sum + stats.userCompleted, 0),
-)
-
+const totalTasks = computed(() => dashboardTasks.value.length)
+const completedTasks = computed(() => dashboardTasks.value.filter(t => t.marked_done).length)
 const completionPercent = computed(() =>
-  totalTasks.value > 0 ? Math.round((completedTasks.value / totalTasks.value) * 100) : 0,
+  totalTasks.value > 0 ? Math.round((completedTasks.value / totalTasks.value) * 100) : 0
 )
-
 const totalActiveRooms = computed(() => joinedRooms.value.length + createdRooms.value.length)
 
-const currentRoom = computed(() => allRooms.value[roomProgressIndex.value] || null)
+// ── Room carousel ─────────────────────────────────────
+const allRooms = computed(() => [...joinedRooms.value, ...createdRooms.value])
+const roomProgressIndex = ref(0)
+const currentRoom = computed(() => allRooms.value[roomProgressIndex.value] ?? null)
+const prevRoom = () => { if (roomProgressIndex.value > 0) roomProgressIndex.value-- }
+const nextRoom = () => { if (roomProgressIndex.value < allRooms.value.length - 1) roomProgressIndex.value++ }
 
-const currentRoomStats = computed(() => {
-  if (!currentRoom.value) {
-    return {
-      taskCount: 0,
-      memberCount: 0,
-      userCompleted: 0,
-      completedWork: 0,
-      totalPossible: 0,
-    }
-  }
-  return roomStats.value[currentRoom.value.room_id] ?? {
-    taskCount: 0,
-    memberCount: 0,
-    userCompleted: 0,
-    completedWork: 0,
-    totalPossible: 0,
-  }
-})
-
-const currentRoomUserProgressPercent = computed(() =>
-  currentRoomStats.value.taskCount > 0
-    ? Math.round((currentRoomStats.value.userCompleted / currentRoomStats.value.taskCount) * 100)
-    : 0,
-)
-
-const currentRoomProgressPercent = computed(() =>
-  currentRoomStats.value.totalPossible > 0
-    ? Math.round((currentRoomStats.value.completedWork / currentRoomStats.value.totalPossible) * 100)
-    : 0,
-)
-
-const fetchAssignedTasksForUser = async () => {
-  if (!user.value) return
-
-  const { data, error: sbError } = await supabase
-    .from('Assigned_To')
-    .select('marked_done, Task ( task_id, title, task_room_id )')
-    .eq('user_id', user.value.id)
-
-  if (sbError) {
-    console.error('Failed to fetch assigned tasks:', sbError.message)
-    return
-  }
-
-  assignedTasks.value = (data || [])
-    .filter((record: any) => record.Task)
-    .map((record: any) => ({
-      task_id: record.Task.task_id,
-      title: record.Task.title,
-      task_room_id: record.Task.task_room_id,
-      marked_done: record.marked_done,
-    }))
-}
-
-const fetchRoomProgressStats = async () => {
-  if (!user.value || allRooms.value.length === 0) return
-
-  const roomIds = allRooms.value.map(room => room.room_id)
-
-  const { data, error: sbError } = await supabase
-    .from('Task')
-    .select('task_id, task_room_id, Assigned_To ( user_id, marked_done )')
-    .in('task_room_id', roomIds)
-
-  if (sbError) {
-    console.error('Failed to fetch room progress stats:', sbError.message)
-    return
-  }
-
-  const stats: Record<string, {
-    taskCount: number
-    memberCount: number
-    userCompleted: number
-    completedWork: number
-    totalPossible: number
+// ── Task group carousel ───────────────────────────────
+const tasksByRoom = computed(() => {
+  const groups: Record<string, {
+    room_id: string
+    room_code: string
+    room_title: string
+    tasks: DashboardTask[]
+    doneCount: number
   }> = {}
 
-  allRooms.value.forEach(room => {
-    const memberCount = Array.isArray(room.members) ? room.members.length : 0
-    stats[room.room_id] = {
-      taskCount: 0,
-      memberCount,
-      userCompleted: 0,
-      completedWork: 0,
-      totalPossible: 0,
+  dashboardTasks.value.forEach(task => {
+    const room = allRooms.value.find(r => r.room_id === task.task_room_id)
+    if (!room) return
+
+    if (!groups[task.task_room_id]) {
+      groups[task.task_room_id] = {
+        room_id: room.room_id,
+        room_code: room.room_code,
+        room_title: room.title,
+        tasks: [],
+        doneCount: 0,
+      }
     }
+    groups[task.task_room_id]!.tasks.push(task)
+    if (task.marked_done) groups[task.task_room_id]!.doneCount++
   })
 
-  const tasks = data || []
-  tasks.forEach((task: any) => {
-    const roomId = task.task_room_id
-    const roomStat = stats[roomId]
-    if (!roomStat) return
+  return Object.values(groups)
+})
 
-    roomStat.taskCount += 1
-    roomStat.totalPossible = roomStat.taskCount * roomStat.memberCount
+const taskGroupIndex = ref(0)
+const currentTaskGroup = computed(() => tasksByRoom.value[taskGroupIndex.value] ?? null)
+const prevTaskGroup = () => { if (taskGroupIndex.value > 0) taskGroupIndex.value-- }
+const nextTaskGroup = () => { if (taskGroupIndex.value < tasksByRoom.value.length - 1) taskGroupIndex.value++ }
 
-    const assigned = Array.isArray(task.Assigned_To) ? task.Assigned_To : []
-    assigned.forEach((assignment: any) => {
-      if (assignment.marked_done) {
-        roomStat.completedWork += 1
-      }
-      if (assignment.user_id === user.value?.id && assignment.marked_done) {
-        roomStat.userCompleted += 1
-      }
-    })
-  })
-
-  Object.values(stats).forEach((roomStat) => {
-    roomStat.totalPossible = roomStat.taskCount * roomStat.memberCount
-  })
-
-  roomStats.value = stats
-}
-
-const refreshDashboardData = async () => {
-  await fetchAssignedTasksForUser()
-  await fetchRoomProgressStats()
-}
-
-const setupDashboardSubscription = () => {
-  if (dashboardChannel.value) return
-
-  dashboardChannel.value = supabase
-    .channel('dashboard-stats')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'Assigned_To' },
-      () => {
-        refreshDashboardData()
-      },
-    )
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'Task' },
-      () => {
-        refreshDashboardData()
-      },
-    )
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'Joins' },
-      () => {
-        refreshDashboardData()
-      },
-    )
-    .subscribe()
-}
-
-const teardownDashboardSubscription = () => {
-  if (!dashboardChannel.value) return
-  supabase.removeChannel(dashboardChannel.value)
-  dashboardChannel.value = null
-}
+// ── Dialogs ───────────────────────────────────────────
+const showCreateDialog = ref(false)
+const newRoomTitle = ref('')
 
 const handleCreateRoom = async () => {
   if (!newRoomTitle.value.trim()) return
@@ -234,11 +133,14 @@ const handleCreateRoom = async () => {
     showCreateDialog.value = false
     newRoomTitle.value = ''
     await fetchJoinedRooms()
-    await refreshDashboardData()
   } else {
     toast.add({ severity: 'error', summary: 'Error', detail: error.value || 'Could not create room.', life: 3000 })
   }
 }
+
+const showJoinDialog = ref(false)
+const joinCode = ref('')
+const isJoining = ref(false)
 
 const handleJoinRoom = async () => {
   if (!joinCode.value.trim()) return
@@ -261,7 +163,6 @@ const handleJoinRoom = async () => {
 
   toast.add({ severity: 'success', summary: 'Joined!', detail: `Welcome to "${result.room.title}"`, life: 3000 })
   await fetchJoinedRooms()
-  await refreshDashboardData()
   showJoinDialog.value = false
   const code = joinCode.value.trim().toUpperCase()
   joinCode.value = ''
@@ -277,34 +178,20 @@ const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-const prevRoom = () => {
-  if (roomProgressIndex.value > 0) roomProgressIndex.value--
-}
-const nextRoom = () => {
-  if (roomProgressIndex.value < allRooms.value.length - 1) roomProgressIndex.value++
-}
-
+// ── Lifecycle ─────────────────────────────────────────
 watch(() => route.query.action, (action) => {
   if (action === 'join') showJoinDialog.value = true
   if (action === 'create') showCreateDialog.value = true
   if (action) router.replace({ query: {} })
 }, { immediate: true })
 
-watch([allRooms, user], () => {
-  refreshDashboardData()
-}, { immediate: true })
-
 onMounted(async () => {
   await fetchCreatedRooms()
   await fetchJoinedRooms()
+  await fetchAllMyTasks()
+
   if (route.query.action === 'join') showJoinDialog.value = true
   if (route.query.action === 'create') showCreateDialog.value = true
-  await refreshDashboardData()
-  setupDashboardSubscription()
-})
-
-onUnmounted(() => {
-  teardownDashboardSubscription()
 })
 </script>
 
@@ -314,8 +201,6 @@ onUnmounted(() => {
   <div class="dashboard-page">
 
     <div class="dashboard-header">
-
-      <!-- Wrap the titles in a new div so they stack properly -->
       <div class="header-titles">
         <h1 class="dashboard-title">Dashboard</h1>
         <p class="dashboard-subtitle">Welcome back! Here's a quick overview of you and your team's progress.</p>
@@ -323,10 +208,6 @@ onUnmounted(() => {
 
       <div class="header-illustration">
         <img src="/placeholder-team.gif" alt="Team illustration" class="header-img" />
-        <svg v-if="false" class="header-img" viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
-          <rect width="160" height="100" rx="8" fill="#e8f5e9" />
-          <text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" fill="#81c784" font-size="11" font-family="sans-serif">Team Illustration</text>
-        </svg>
       </div>
     </div>
 
@@ -366,6 +247,7 @@ onUnmounted(() => {
       </div>
     </div>
 
+    <!-- ── Room Progress ─────────────────────────────── -->
     <div class="section-block">
       <div class="section-header">
         <span class="section-title">Room Progress</span>
@@ -373,7 +255,8 @@ onUnmounted(() => {
           <button class="nav-btn" @click="prevRoom" :disabled="roomProgressIndex === 0 || allRooms.length === 0">
             <i class="pi pi-chevron-left" />
           </button>
-          <button class="nav-btn" @click="nextRoom" :disabled="roomProgressIndex >= allRooms.length - 1 || allRooms.length === 0">
+          <button class="nav-btn" @click="nextRoom"
+            :disabled="roomProgressIndex >= allRooms.length - 1 || allRooms.length === 0">
             <i class="pi pi-chevron-right" />
           </button>
         </div>
@@ -385,73 +268,99 @@ onUnmounted(() => {
       <div v-else-if="allRooms.length === 0" class="empty-hint">
         Join or create a room and huddle up with your team.
       </div>
-      <div v-else class="room-progress-card" @click="currentRoom && goToRoom(currentRoom.room_code)">
+      <div v-else-if="currentRoom" class="room-progress-card" @click="goToRoom(currentRoom.room_code)">
         <div class="rp-top">
-          <span class="rp-code">{{ currentRoom?.room_code }}</span>
-          <span class="rp-badge" :class="createdRooms.find(r => r.room_code === currentRoom?.room_code) ? 'owner' : 'member'">
+          <span class="rp-code">{{ currentRoom.room_code }}</span>
+          <span class="rp-badge"
+            :class="createdRooms.find(r => r.room_code === currentRoom?.room_code) ? 'owner' : 'member'">
             {{ createdRooms.find(r => r.room_code === currentRoom?.room_code) ? 'owner' : 'member' }}
           </span>
         </div>
-        <div class="rp-title">{{ currentRoom?.title }}</div>
-        <div class="rp-date">Created {{ currentRoom ? formatDate(currentRoom.room_created_at) : '' }}</div>
-        <div class="rp-meta">
-          <div>Your Progress: {{ currentRoomStats.userCompleted }} / {{ currentRoomStats.taskCount }} ({{ currentRoomUserProgressPercent }}%)</div>
-          <div>Room Progress: {{ currentRoomStats.completedWork }} / {{ currentRoomStats.totalPossible }} ({{ currentRoomProgressPercent }}%)</div>
-        </div>
+        <div class="rp-title">{{ currentRoom.title }}</div>
+        <div class="rp-date">Created {{ formatDate(currentRoom.room_created_at) }}</div>
       </div>
     </div>
 
+    <!-- ── Assigned Tasks ────────────────────────────── -->
     <div class="section-block">
       <div class="section-header">
         <span class="section-title">Your Assigned Tasks</span>
+        <div class="section-header-right">
+          <span v-if="totalTasks > 0" class="tasks-summary-pill">
+            {{ completedTasks }}/{{ totalTasks }} completed
+          </span>
+          <div class="carousel-nav" v-if="tasksByRoom.length > 1">
+            <button class="nav-btn" @click="prevTaskGroup" :disabled="taskGroupIndex === 0">
+              <i class="pi pi-chevron-left" />
+            </button>
+            <button class="nav-btn" @click="nextTaskGroup" :disabled="taskGroupIndex >= tasksByRoom.length - 1">
+              <i class="pi pi-chevron-right" />
+            </button>
+          </div>
+        </div>
       </div>
-      <div v-if="assignedTasks.length === 0" class="empty-hint">
+
+      <div v-if="dashboardTasks.length === 0" class="empty-hint">
         You don't have any assigned tasks yet.
       </div>
-      <div v-else class="task-list">
-        <div v-for="task in assignedTasks" :key="task.task_id" class="task-item">
-          <div class="task-item__title">{{ task.title }}</div>
-          <div class="task-item__status" :class="task.marked_done ? 'done' : 'pending'">
-            {{ task.marked_done ? 'Completed' : 'Pending' }}
+
+      <div v-else-if="currentTaskGroup" class="tasks-panel">
+        <!-- Group header -->
+        <div class="room-task-label">
+          <span class="rp-code">{{ currentTaskGroup.room_code }}</span>
+          <span class="room-task-name">{{ currentTaskGroup.room_title }}</span>
+          <span class="room-task-count">{{ currentTaskGroup.doneCount }}/{{ currentTaskGroup.tasks.length }} done</span>
+        </div>
+
+        <!-- Task list -->
+        <div class="task-list">
+          <div
+            v-for="task in currentTaskGroup.tasks"
+            :key="task.task_id"
+            class="task-item"
+            :class="{ 'task-item--done': task.marked_done }"
+          >
+            <div class="task-check" :class="{ 'task-check--done': task.marked_done }">
+              <i v-if="task.marked_done" class="pi pi-check" style="font-size: 0.6rem;" />
+            </div>
+            <span class="task-item__title">{{ task.title }}</span>
+            <span
+              class="task-item__status"
+              :class="task.marked_done ? 'done' : 'pending'"
+            >
+              {{ task.marked_done ? 'Done' : 'Pending' }}
+            </span>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- ── Dialogs ────────────────────────────────────── -->
     <Dialog v-model:visible="showCreateDialog" header="Create a New Room" :style="{ width: '400px' }" modal>
       <div class="dialog-body">
         <label class="dialog-label">Room Name</label>
-        <InputText
-          v-model="newRoomTitle"
-          placeholder="e.g. Sprint Planning, Study Group..."
-          class="w-full"
-          @keyup.enter="handleCreateRoom"
-          autofocus
-        />
+        <InputText v-model="newRoomTitle" placeholder="e.g. Sprint Planning, Study Group..." class="w-full"
+          @keyup.enter="handleCreateRoom" autofocus />
         <p class="dialog-hint">A unique room code will be generated automatically.</p>
       </div>
       <template #footer>
         <Button label="Cancel" severity="secondary" text @click="showCreateDialog = false" />
-        <Button label="Create Room" icon="pi pi-plus" :loading="isLoading" :disabled="!newRoomTitle.trim()" @click="handleCreateRoom" />
+        <Button label="Create Room" icon="pi pi-plus" :loading="isLoading" :disabled="!newRoomTitle.trim()"
+          @click="handleCreateRoom" />
       </template>
     </Dialog>
 
     <Dialog v-model:visible="showJoinDialog" header="Join a Room" :style="{ width: '400px' }" modal>
       <div class="dialog-body">
         <label class="dialog-label">Room Code</label>
-        <InputText
-          v-model="joinCode"
-          placeholder="e.g. AB12CD"
-          class="w-full"
-          style="text-transform: uppercase;"
-          @keyup.enter="handleJoinRoom"
-          autofocus
-        />
+        <InputText v-model="joinCode" placeholder="e.g. AB12CD" class="w-full" style="text-transform: uppercase;"
+          @keyup.enter="handleJoinRoom" autofocus />
         <p class="dialog-hint">Ask your team for the 6-character room code.</p>
       </div>
       <template #footer>
         <Button label="Cancel" severity="secondary" text @click="showJoinDialog = false" />
-        <Button label="Join Room" icon="pi pi-sign-in" :loading="isJoining" :disabled="!joinCode.trim()" @click="handleJoinRoom" />
+        <Button label="Join Room" icon="pi pi-sign-in" :loading="isJoining" :disabled="!joinCode.trim()"
+          @click="handleJoinRoom" />
       </template>
     </Dialog>
 
@@ -469,6 +378,7 @@ onUnmounted(() => {
   font-family: 'Segoe UI', sans-serif;
 }
 
+/* ── Header ──────────────────────────────────────────── */
 .dashboard-header {
   display: flex;
   justify-content: space-between;
@@ -490,8 +400,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   position: relative;
-  top: 27px;   /* Pushes it down from the top */
-  right: 20px; /* Pushes it away from the right edge (moving it left) */
+  top: 27px;
+  right: 20px;
 }
 
 .header-img {
@@ -500,6 +410,7 @@ onUnmounted(() => {
   object-fit: contain;
 }
 
+/* ── Stat Cards ──────────────────────────────────────── */
 .stats-row {
   display: flex;
   gap: 0.75rem;
@@ -568,10 +479,6 @@ onUnmounted(() => {
   z-index: 10;
 }
 
-.stat-illus-fallback {
-  display: block;
-}
-
 .stat-card__text {
   display: flex;
   flex-direction: column;
@@ -601,6 +508,7 @@ onUnmounted(() => {
   line-height: 1.5;
 }
 
+/* ── Section Shared ──────────────────────────────────── */
 .section-block {
   display: flex;
   flex-direction: column;
@@ -611,6 +519,12 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.section-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 
 .section-title {
@@ -625,6 +539,7 @@ onUnmounted(() => {
   padding: 0.25rem 0;
 }
 
+/* ── Room Progress Carousel ──────────────────────────── */
 .carousel-nav {
   display: flex;
   gap: 0.4rem;
@@ -663,6 +578,14 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.room-progress-card:hover {
+  border-color: #8CAE3A;
+  box-shadow: 0 4px 12px rgba(140, 174, 58, 0.15);
+  transform: translateY(-2px);
 }
 
 .rp-top {
@@ -711,6 +634,148 @@ onUnmounted(() => {
   color: #8a9a78;
 }
 
+/* ── Assigned Tasks ──────────────────────────────────── */
+.tasks-summary-pill {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #5a8a2e;
+  background: #eef7e4;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+}
+
+.tasks-panel {
+  background: white;
+  border: 1px solid #e2ebd4;
+  border-radius: 14px;
+  padding: 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04);
+}
+
+.room-task-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.room-task-label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0;
+}
+
+.room-task-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #2d2d2d;
+}
+
+.room-task-count {
+  font-size: 0.75rem;
+  color: #9aaa88;
+  margin-left: auto;
+  background: #f0f5e8;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+.room-task-divider {
+  border: none;
+  border-top: 1px dashed #e2ebd4;
+  margin: 0.75rem 0 0.25rem;
+}
+
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tasks-panel .task-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: #ffffff;
+  border: 1px solid #dde8cc;
+  border-radius: 12px;
+  padding: 0.85rem 1.1rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  /* Reset any inherited list/global styles */
+  margin: 0;
+  list-style: none;
+  text-decoration: none;
+}
+
+.tasks-panel .task-item:hover {
+  border-color: #a8cc6a;
+  box-shadow: 0 4px 14px rgba(140, 174, 58, 0.14);
+  transform: translateY(-1px);
+}
+
+.tasks-panel .task-item.task-item--done {
+  background: #f7faf2;
+  border-color: #ddecc8;
+  box-shadow: none;
+}
+
+.task-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #ccd9b8;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  background: white;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.task-check--done {
+  background: #8CAE3A;
+  border-color: #8CAE3A;
+}
+
+.task-item__title {
+  flex: 1;
+  font-size: 0.85rem;
+  color: #2d2d2d;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.task-item--done .task-item__title {
+  text-decoration: line-through;
+  color: #b0be9e;
+}
+
+.task-item__status {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+  letter-spacing: 0.03em;
+}
+
+.task-item__status.done {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.task-item__status.pending {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* ── Dialogs ─────────────────────────────────────────── */
 .dialog-body {
   display: flex;
   flex-direction: column;
@@ -732,26 +797,5 @@ onUnmounted(() => {
 
 .w-full {
   width: 100%;
-}
-
-.room-progress-card {
-  background: white;
-  border: 1px solid #dde8cc;
-  border-radius: 12px;
-  padding: 1rem 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-
-  /* 👇 New additions for clicking */
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-/* 👇 Add this new hover state right below it! */
-.room-progress-card:hover {
-  border-color: #8CAE3A; /* Highlights the border with your theme green */
-  box-shadow: 0 4px 12px rgba(140, 174, 58, 0.15); /* Adds a soft green glow */
-  transform: translateY(-2px); /* Slightly lifts the card up */
 }
 </style>
