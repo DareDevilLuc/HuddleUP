@@ -224,6 +224,21 @@ export function useTasks() {
     return true
   }
 
+  const updateTask = async (taskId: string, newTitle: string) => {
+  const { error } = await supabase
+    .from('tasks')
+    .update({ title: newTitle })
+    .eq('task_id', taskId)
+
+  if (error) return false
+
+  // Update local state
+  const task = assignedTasks.value.find(t => t.task_id === taskId)
+  if (task) task.title = newTitle
+
+  return true
+}
+
   return {
     room,
     isAdmin,

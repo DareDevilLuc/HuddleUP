@@ -106,6 +106,27 @@ const handleDeleteRoom = async () => {
   router.push('/main')
 }
 
+const editingTask = ref<any>(null)
+const editTaskTitle = ref('')
+
+const openEditTask = (task: any) => {
+  editingTask.value = task
+  editTaskTitle.value = task.title
+}
+
+const handleEditTask = async () => {
+  if (!editTaskTitle.value.trim()) return
+  isSubmitting.value = true
+  const success = await updateTask(editingTask.value.task_id, editTaskTitle.value.trim())
+  if (!success) {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to update task.', life: 3000 })
+  } else {
+    toast.add({ severity: 'success', summary: 'Updated', detail: 'Task updated!', life: 3000 })
+    editingTask.value = null
+  }
+  isSubmitting.value = false
+}
+
 onMounted(async () => {
   subscribeToTasks()
   await loadRoomData(roomCode)
@@ -123,15 +144,22 @@ watch(
   <Toast />
 
   <div class="room-page">
-    
+
     <div class="room-header-card">
       <div class="header-top-row">
         <h1 class="room-title">{{ room?.title || 'Loading Room...' }}</h1>
-        
+
         <div class="header-actions">
+          <Button
+            v-if="isAdmin"
+            icon="pi pi-pencil"
+            severity="secondary"
+            text rounded
+            @click.stop="openEditTask(task)"
+          />
           <Button v-if="isAdmin" icon="pi pi-trash" severity="danger" text rounded @click="handleDeleteRoom" title="Delete Room" />
           <Button v-else icon="pi pi-sign-out" severity="secondary" text rounded @click="handleLeaveRoom" title="Leave Room" />
-          
+
           <div class="code-badge">{{ route.params.roomCode }}</div>
         </div>
       </div>
@@ -145,31 +173,31 @@ watch(
     </div>
 
     <div class="room-content-grid">
-      
+
       <div class="tasks-column">
         <div class="column-header">
           <h2 class="section-title">Tasks ({{ assignedTasks.length }})</h2>
-          <Button 
-            v-if="isAdmin" 
-            label="Add New Task" 
-            icon="pi pi-plus-circle" 
-            class="btn-add-task" 
-            @click="showCreateTask = true" 
+          <Button
+            v-if="isAdmin"
+            label="Add New Task"
+            icon="pi pi-plus-circle"
+            class="btn-add-task"
+            @click="showCreateTask = true"
           />
         </div>
 
         <div v-if="isLoading" class="loading-state">
           <i class="pi pi-spin pi-spinner" /> Loading tasks...
         </div>
-        
+
         <div v-else-if="assignedTasks.length === 0" class="empty-state">
           No tasks yet. Create one to get started!
         </div>
 
         <div v-else class="task-list">
-          <div 
-            v-for="task in assignedTasks" 
-            :key="task.task_id" 
+          <div
+            v-for="task in assignedTasks"
+            :key="task.task_id"
             class="task-card"
             :class="{ 'is-done': task.marked_done }"
             @click="toggleTask(task)"
@@ -181,7 +209,7 @@ watch(
                 <span class="task-desc">Task assigned to you and others. Please complete this before the deadline.</span>
               </div>
             </div>
-            
+
             <div class="task-card-right">
               <div class="avatar-group">
                 <Avatar v-for="(member, index) in members.slice(0,3)" :key="member.user_id" icon="pi pi-user" shape="circle" class="overlap-avatar" />
@@ -201,14 +229,14 @@ watch(
         <div class="members-list">
           <div v-for="member in members" :key="member.user_id" class="member-item">
             <Avatar icon="pi pi-user" size="large" shape="circle" class="member-avatar" />
-            
+
             <div class="member-info">
               <span class="member-name">{{ member.username }} <span v-if="member.user_id === room?.created_by" class="owner-badge">(Owner)</span></span>
               <div class="member-progress-track">
                 <div class="member-progress-fill" :style="{ width: overallProgress + '%' }"></div>
               </div>
             </div>
-            
+
             <span class="member-percent">{{ overallProgress }}%</span>
           </div>
         </div>
@@ -380,6 +408,7 @@ watch(
 
 .task-checkbox {
   margin-top: 0.2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .task-info {
@@ -491,6 +520,8 @@ watch(
   min-width: 40px;
   text-align: right;
 }
+
+
 
 /* Utilities */
 .w-full { width: 100%; }
